@@ -6,7 +6,7 @@ Description: Lets you write links as [link text->link url] (explicit link), or a
 Author: Denis de Bernardy
 Version: 4.1
 Author URI: http://www.getsemiologic.com
-Update Service: http://version.semiologic.com/wordpress
+Update Service: http://version.semiologic.com/plugins
 Update Tag: smart_links
 Update Package: http://www.semiologic.com/media/software/publishing/smart-links/smart-links.zip
 */
