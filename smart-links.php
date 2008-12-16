@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/publishing/smart-links/
 Description: Lets you write links as [link text->link url] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.1
+Version: 4.1.1 alpha
 Author URI: http://www.getsemiologic.com
 Update Service: http://version.semiologic.com/plugins
 Update Tag: smart_links
@@ -976,18 +976,11 @@ class wp_smart_links
 					$parents_sql = implode(', ', $parents);
 
 					$parents = (array) $wpdb->get_col("
-						# wp_smart_links::section() / scan section
 						SELECT	posts.ID
 						FROM	$wpdb->posts as posts
 						WHERE	posts.post_status = 'publish'
 						AND		posts.post_type = 'page'
-						AND		posts.ID IN ( $parents_sql )
-						UNION
-						SELECT	posts.ID
-						FROM	$wpdb->posts as posts
-						WHERE	posts.post_status = 'publish'
-						AND		posts.post_type = 'page'
-						AND		posts.post_parent IN ( $parents_sql )
+						AND		( posts.ID IN ( $parents_sql ) OR posts.post_parent IN ( $parents_sql ) )
 						");
 					
 					sort($parents);
