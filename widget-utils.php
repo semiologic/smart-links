@@ -170,6 +170,10 @@ class widget_utils
 	
 	function save_widget_config($post_ID, $type = null)
 	{
+		$post = get_post($post_ID);
+		
+		if ( $post->post_type == 'revision' ) return;
+		
 		if ( !empty($_POST) )
 		{
 			$post =& get_post($post_ID);
