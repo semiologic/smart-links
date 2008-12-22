@@ -25,6 +25,8 @@ if ( is_admin() && !class_exists('widget_utils') )
 	include dirname(__FILE__) . '/widget-utils.php';
 }
 
+define('smart_links_debug', false);
+
 class smart_links
 {
 	#
@@ -592,6 +594,8 @@ class wp_smart_links
 	{
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
+		$use_cache &= !smart_links_debug;
+		
 		# build cache, if not available
 		if ( !$use_cache
 			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
@@ -641,6 +645,8 @@ class wp_smart_links
 	function entries($links, $use_cache = true)
 	{
 		$object_id = in_the_loop() ? get_the_ID() : 0;
+		
+		$use_cache &= !smart_links_debug;
 		
 		# build cache, if not available
 		if ( !$use_cache
@@ -763,6 +769,8 @@ class wp_smart_links
 	{
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
+		$use_cache &= !smart_links_debug;
+		
 		# build cache, if not available
 		if ( !$use_cache
 		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
@@ -868,6 +876,8 @@ class wp_smart_links
 	{
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
+		$use_cache &= !smart_links_debug;
+		
 		# build cache, if not available
 		if ( !$use_cache
 		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
@@ -954,6 +964,8 @@ class wp_smart_links
 	function section($section_id, $links, $use_cache = true)
 	{
 		$object_id = in_the_loop() ? get_the_ID() : 0;
+		
+		$use_cache &= !smart_links_debug;
 		
 		# build cache, if not available
 		if ( !$use_cache
