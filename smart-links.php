@@ -41,9 +41,6 @@ class smart_links
 		add_filter('the_content', array('smart_links', 'replace'), 8);
 		add_filter('the_excerpt', array('smart_links', 'replace'), 8);
 		add_filter('widget_text', array('smart_links', 'replace'), 8);
-		
-		if ( @ini_get('pcre.backtrack_limit') < 250000 )
-			@ini_set('pcre.backtrack_limit', 250000);
 	} # init()
 	
 	
