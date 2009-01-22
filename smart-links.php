@@ -6,9 +6,7 @@ Description: Lets you write links as [link text->link url] (explicit link), or a
 Author: Denis de Bernardy
 Version: 4.1.2 alpha
 Author URI: http://www.getsemiologic.com
-Update Service: http://version.semiologic.com/plugins
-Update Tag: smart_links
-Update Package: http://www.semiologic.com/media/software/publishing/smart-links/smart-links.zip
+Update Package: https://members.semiologic.com/media/plugins/smart-links.zip
 */
 
 /*
@@ -543,25 +541,11 @@ class wp_smart_links
 		add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 		add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 		
-		add_filter('sem_api_key_protected', array('wp_smart_links', 'sem_api_key_protected'));
-		
 		register_activation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
 		register_deactivation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
 	} # init()
 
 
-	#
-	# sem_api_key_protected()
-	#
-	
-	function sem_api_key_protected($array)
-	{
-		$array[] = 'http://www.semiologic.com/media/software/publishing/smark-links/smark-links.zip';
-		
-		return $array;
-	} # sem_api_key_protected()
-	
-	
 	#
 	# widget_config_affected()
 	#
