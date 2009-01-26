@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/publishing/smart-links/
 Description: Lets you write links as [link text->link url] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.1.2 RC
+Version: 4.1.2
 Author URI: http://www.getsemiologic.com
 Update Package: https://members.semiologic.com/media/plugins/smart-links/smart-links.zip
 */
