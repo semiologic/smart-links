@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link url] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.1.3 RC
+Version: 4.2 RC
 Author URI: http://www.getsemiologic.com
 */
 
@@ -17,36 +17,34 @@ This software is copyright Mesoconcepts and is distributed under the terms of th
 http://www.mesoconcepts.com/license/
 **/
 
-if ( is_admin() && !class_exists('widget_utils') )
-{
+if ( is_admin() && !class_exists('widget_utils') ) {
 	include dirname(__FILE__) . '/widget-utils.php';
 }
 
-@define('smart_links_debug', false);
+@define('smart_links_debug', true);
 
-class smart_links
-{
-	#
-	# init()
-	#
+/**
+ * smart_links
+ *
+ * @package Smart Links
+ **/
+
+global $smart_links_engines;
+$smart_links_engines = array();
+
+add_filter('the_content', array('smart_links', 'replace'), 8);
+add_filter('the_excerpt', array('smart_links', 'replace'), 8);
+add_filter('widget_text', array('smart_links', 'replace'), 8);
+
+class smart_links {
+	/**
+	 * replace()
+	 *
+	 * @param string $str
+	 * @return string $str
+	 **/
 	
-	function init()
-	{
-		global $smart_links_engines;
-		$smart_links_engines = array();
-		
-		add_filter('the_content', array('smart_links', 'replace'), 8);
-		add_filter('the_excerpt', array('smart_links', 'replace'), 8);
-		add_filter('widget_text', array('smart_links', 'replace'), 8);
-	} # init()
-	
-	
-	#
-	# replace()
-	#
-	
-	function replace($str)
-	{
+	function replace($str) {
 		# initialize
 		global $smart_links_cache;
 		global $smart_links_aliases;
@@ -55,12 +53,10 @@ class smart_links
 		$smart_links_cache = array();
 		
 		# create alias list
-		if ( !isset($smart_links_aliases) )
-		{
+		if ( !isset($smart_links_aliases) ) {
 			$smart_links_aliases = array();
 			
-			foreach ( array_keys($smart_links_engines) as $domain )
-			{
+			foreach ( array_keys($smart_links_engines) as $domain ) {
 				$smart_links_aliases[$domain] = array_search($smart_links_engines[$domain], $smart_links_engines);
 			}
 		}
@@ -179,12 +175,14 @@ class smart_links
 	} # replace()
 	
 	
-	#
-	# pre_process()
-	#
-	
-	function pre_process($in)
-	{
+	/**
+	 * pre_process()
+	 *
+	 * @param array $in regex match
+	 * @return string $out
+	 **/
+
+	function pre_process($in) {
 		global $smart_links_cache;
 		global $smart_links_engines;
 		global $smart_links_aliases;
@@ -196,8 +194,7 @@ class smart_links
 		$ref = trim($in[2]);
 		
 		# set default ref
-		if ( $ref == '' )
-		{
+		if ( $ref == '' ) {
 			$ref = strtolower($label);
 		}
 		
@@ -213,11 +210,9 @@ class smart_links
 				|
 				\?
 			)
-			/x", $ref) )
-		{
+			/x", $ref) ) {
 			# process directly
-			if ( $label == $ref )
-			{
+			if ( $label == $ref ) {
 				$label = preg_replace("/
 					^.+:\/\/
 					/x", '', $label);
@@ -226,16 +221,14 @@ class smart_links
 			return '<a href="' . htmlspecialchars($ref) . '" title="' . htmlspecialchars($label) . '">'
 				. $label
 				. '</a>';
-			
-		}
+		
 		# catch domains without ref
-		elseif ( strpos($ref, '@') === 0 )
-		{
+		} elseif ( strpos($ref, '@') === 0 ) {
 			$domain = trim(str_replace('@', '', $ref));
 			$ref = strtolower($label);
-		}
+		
 		# catch emails
-		elseif ( preg_match("/
+		} elseif ( preg_match("/
 			(?:mailto:\s*)?
 			(							# something that looks like an email
 				[0-9a-z_-]+
@@ -244,8 +237,7 @@ class smart_links
 				[0-9a-z_-]+
 				(?:\.[0-9a-z_-]+)+
 			)
-			/x", $ref, $match) )
-		{
+			/x", $ref, $match) ) {
 			# process directly
 			$email = trim($match[1]);
 			$email = antispambot($email);
@@ -253,36 +245,30 @@ class smart_links
 			return '<a href="mailto:' . $email . '" title="' . $email . '">'
 				. $label
 				. '</a>';
-			
-		}
+		
 		# use default domain if none is specified
-		elseif ( strpos($ref, '@') === false )
-		{
+		} elseif ( strpos($ref, '@') === false ) {
 			$domain = 'default';
 			$ref = $ref;
-		}
+		
 		# else extract domain
-		else
-		{
+		} else {
 			$match = preg_split("/@/", $ref);
 			
 			$ref = trim($match[0]);
 			$domain = trim($match[1]);
 			
-			if ( !$domain )
-			{
+			if ( !$domain ) {
 				$domain = 'default';
 			}
 		}
 		
 		# catch domain alias (i.e. every registered domain)
-		if ( $alias = $smart_links_aliases[$domain] )
-		{
+		if ( $alias = $smart_links_aliases[$domain] ) {
 			$domain = $alias;
-		}
+		
 		# catch no factory
-		elseif ( !$smart_links_engine_factory )
-		{
+		} elseif ( !$smart_links_engine_factory ) {
 			return $label;
 		}
 		
@@ -295,12 +281,14 @@ class smart_links
 	} # pre_process()
 	
 	
-	#
-	# process()
-	#
-	
-	function process($in)
-	{
+	/**
+	 * process()
+	 *
+	 * @param array $in regex match
+	 * @return string $out
+	 **/
+
+	function process($in) {
 		global $smart_links_cache;
 
 		$label = trim($in[1]);
@@ -309,34 +297,32 @@ class smart_links
 		
 		#dump($label, $ref, $domain, $smart_links_cache[$domain]);
 		
-		if ( !( $link = $smart_links_cache[$domain][$ref] ) )
-		{
+		if ( !( $link = $smart_links_cache[$domain][$ref] ) ) {
 			return $label;
 		}
 		
 		return '<a href="' . htmlspecialchars($link['link']) . '"'
 			. ' title="' . htmlspecialchars($link['title']) . '"'
 			. '>' . $label . '</a>';
-	} # $in
+	} # process()
 	
 	
-	#
-	# fetch()
-	#
-	
-	function fetch()
-	{
+	/**
+	 * fetch()
+	 *
+	 * @return void
+	 **/
+
+	function fetch() {
 		global $smart_links_cache;
 		global $smart_links_engines;
 		global $smart_links_engine_factory;
 		
 		# fetch links
-		foreach ( $smart_links_cache as $domain => $links )
-		{
+		foreach ( $smart_links_cache as $domain => $links ) {
 			if ( !isset($smart_links_engines[$domain])
 				&& isset($smart_links_engine_factory)
-				)
-			{
+			) {
 				$smart_links_engines[$domain] = call_user_func($smart_links_engine_factory, $domain);
 			}
 			
@@ -344,8 +330,7 @@ class smart_links
 			ksort($links);
 			$links = array_reverse($links, true);
 			
-			if ( isset($smart_links_engines[$domain]) )
-			{
+			if ( isset($smart_links_engines[$domain]) ) {
 				$smart_links_cache[$domain] = call_user_func($smart_links_engines[$domain], $links);
 			}
 		}
@@ -354,12 +339,15 @@ class smart_links
 	} # fetch()
 	
 	
-	#
-	# register_engine()
-	#
-	
-	function register_engine($domain, $callback)
-	{
+	/**
+	 * register_engine()
+	 *
+	 * @param string $domain
+	 * @param callback $callback
+	 * @return void
+	 **/
+
+	function register_engine($domain, $callback) {
 		global $smart_links_engines;
 		
 		$domain = trim(strtolower($domain));
@@ -368,62 +356,56 @@ class smart_links
 	} # register_engine()
 
 
-	#
-	# register_engine_factory()
-	#
+	/**
+	 * register_engine_factory()
+	 *
+	 * @param callback $callback
+	 * @return void
+	 **/
 
-	function register_engine_factory($callback)
-	{
+	function register_engine_factory($callback) {
 		global $smart_links_engine_factory;
 
 		$smart_links_engine_factory = $callback;
 	} # register_engine_factory()
 } # smart_links
 
-smart_links::init();
 
+/**
+ * smart_links_search
+ *
+ * @package Smart Links
+ **/
 
+foreach ( array('g', 'google', 'evil') as $domain ) {
+	smart_links::register_engine($domain, array('smart_links_search', 'google'));
+}
 
-class smart_links_search
-{
-	#
-	# init()
-	#
-	
-	function init()
-	{
-		foreach ( array('g', 'google', 'evil') as $domain )
-		{
-			smart_links::register_engine($domain, array('smart_links_search', 'google'));
-		}
+foreach ( array('y', 'yahoo') as $domain ) {
+	smart_links::register_engine($domain, array('smart_links_search', 'yahoo'));
+}
 
-		foreach ( array('y', 'yahoo') as $domain )
-		{
-			smart_links::register_engine($domain, array('smart_links_search', 'yahoo'));
-		}
+foreach ( array('m', 'msn') as $domain ) {
+	smart_links::register_engine($domain, array('smart_links_search', 'msn'));
+}
 
-		foreach ( array('m', 'msn') as $domain )
-		{
-			smart_links::register_engine($domain, array('smart_links_search', 'msn'));
-		}
+foreach ( array('w', 'wiki', 'wikipedia') as $domain ) {
+	smart_links::register_engine($domain, array('smart_links_search', 'wiki'));
+}
 
-		foreach ( array('w', 'wiki', 'wikipedia') as $domain )
-		{
-			smart_links::register_engine($domain, array('smart_links_search', 'wiki'));
-		}
-	} # init()
+class smart_links_search {
+	/**
+	 * search()
+	 *
+	 * @param array $links
+	 * @param string $how query url
+	 * @param string $where engine name
+	 * @return array $links
+	 **/
 
-	
-	#
-	# search()
-	#
-
-	function search($links, $how, $where)
-	{
-		foreach ( array_keys($links) as $ref )
-		{
-			if ( !$links[$ref] )
-			{
+	function search($links, $how, $where)  {
+		foreach ( array_keys($links) as $ref ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = array(
 					'link' => ( $how . rawurlencode($ref) ),
 					'title' => "$ref @ $where"
@@ -433,151 +415,158 @@ class smart_links_search
 
 		return $links;
 	} # search()
+	
+	
+	/**
+	 * google()
+	 *
+	 * @param array $links
+	 * @return array $links
+	 **/
 
-
-	#
-	# google()
-	#
-
-	function google($links)
-	{
+	function google($links) {
 		return smart_links_search::search($links, "http://www.google.com/search?q=", 'Google');
 	} # google()
-
-
-	#
-	# yahoo()
-	#
-
-	function yahoo($links)
-	{
+	
+	
+	/**
+	 * yahoo()
+	 *
+	 * @param array $links
+	 * @return array $links
+	 **/
+	
+	function yahoo($links) {
 		return smart_links_search::search($links, "http://search.yahoo.com/search?p=", 'Yahoo!');
 	} # yahoo()
 
 
-	#
-	# msn()
-	#
-
-	function msn($links)
-	{
+	/**
+	 * msn()
+	 *
+	 * @param array $links
+	 * @return array $links
+	 **/
+	
+	function msn($links) {
 		return smart_links_search::search($links, "http://search.msn.com/results.aspx?q=", 'MSN');
 	} # msn()
-
-
-	#
-	# wiki()
-	#
-
-	function wiki($links)
-	{
+	
+	
+	/**
+	 * wiki()
+	 *
+	 * @param array $links
+	 * @return array $links
+	 **/
+	
+	function wiki($links) {
 		return smart_links_search::search($links, "http://en.wikipedia.org/wiki/Special:Search?search=", 'Wikipedia');
 	} # wiki()
 } # smart_links_search
 
-smart_links_search::init();
 
+/**
+ * wp_smart_links
+ *
+ * @package Smart Links
+ **/
 
-
-class wp_smart_links
+foreach ( array('default', 'wp', 'wordpress') as $domain )
 {
-	#
-	# init()
-	#
+	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
+}
+
+foreach ( array('entries', 'pages', 'posts') as $domain )
+{
+	smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
+}
+
+foreach ( array('terms', 'cats', 'tags') as $domain )
+{
+	smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
+}
+
+foreach ( array('links', 'blogroll') as $domain )
+{
+	smart_links::register_engine($domain, array('wp_smart_links', 'links'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
+}
+
+smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
+
+foreach ( array(
+	'save_post',
+	'delete_post',
+	'add_link',
+	'edit_link',
+	'delete_link',
+	'generate_rewrite_rules',
+	'switch_theme',
+	'update_option_active_plugins',
+	'update_option_show_on_front',
+	'update_option_page_on_front',
+	'update_option_page_for_posts',
+	'update_option_sidebars_widgets',
+	'update_option_sem5_options',
+	'update_option_sem6_options',
+	) as $hook )
+{
+	add_action($hook, array('wp_smart_links', 'clear_cache'));
+}
+
+if ( version_compare(mysql_get_server_info(), '4.1', '<') )
+{
+	add_action('admin_notices', array('wp_smart_links', 'mysql_warning'));
+}
+
+add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
+add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
+
+register_activation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
+register_deactivation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
+
+class wp_smart_links {
+	/**
+	 * widget_config_affected()
+	 *
+	 * @return void
+	 **/
 	
-	function init()
-	{
-		foreach ( array('default', 'wp', 'wordpress') as $domain )
-		{
-			smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
-		}
-
-		foreach ( array('entries', 'pages', 'posts') as $domain )
-		{
-			smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
-			smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
-			smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
-		}
-
-		foreach ( array('terms', 'cats', 'tags') as $domain )
-		{
-			smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
-			smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
-			smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
-		}
-
-		foreach ( array('links', 'blogroll') as $domain )
-		{
-			smart_links::register_engine($domain, array('wp_smart_links', 'links'));
-			smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
-			smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
-		}
-		
-		smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
-		
-		foreach ( array(
-			'save_post',
-			'delete_post',
-			'add_link',
-			'edit_link',
-			'delete_link',
-			'generate_rewrite_rules',
-			'switch_theme',
-			'update_option_active_plugins',
-			'update_option_show_on_front',
-			'update_option_page_on_front',
-			'update_option_page_for_posts',
-			'update_option_sidebars_widgets',
-			'update_option_sem5_options',
-			'update_option_sem6_options',
-			) as $hook )
-		{
-			add_action($hook, array('wp_smart_links', 'clear_cache'));
-		}
-		
-		if ( version_compare(mysql_get_server_info(), '4.1', '<') )
-		{
-			add_action('admin_notices', array('wp_smart_links', 'mysql_warning'));
-		}
-		
-		add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-		add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-		
-		register_activation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
-		register_deactivation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
-	} # init()
-
-
-	#
-	# widget_config_affected()
-	#
-	
-	function widget_config_affected()
-	{
+	function widget_config_affected() {
 		echo '<li>'
 			. 'Smart Links (exclude only)'
 			. '</li>';
 	} # widget_config_affected()
 	
 	
-	#
-	# mysql_warning()
-	#
+	/**
+	 * mysql_warning()
+	 *
+	 * @return void
+	 **/
 	
-	function mysql_warning()
-	{
+	function mysql_warning() {
 		echo '<div class="error">'
 			. '<p><b style="color: firebrick;">Smart Link Error</b><br /><b>Your MySQL version is lower than 4.1.</b> It\'s time to <a href="http://www.semiologic.com/resources/wp-basics/wordpress-server-requirements/">change hosts</a> if yours doesn\'t want to upgrade.</p>'
 			. '</div>';
 	} # mysql_warning()
 	
 	
-	#
-	# wp()
-	#
+	/**
+	 * wp()
+	 *
+	 * @param array $links
+	 * @param bool $use_cache
+	 * @return array $links
+	 **/
 	
-	function wp($links, $use_cache = true)
-	{
+	function wp($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug;
@@ -585,14 +574,12 @@ class wp_smart_links
 		# build cache, if not available
 		if ( !$use_cache
 			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
-			)
-		{
+		) {
 			$cache = array_keys($links);
 
 			$_cache = array();
 
-			foreach ( $cache as $key )
-			{
+			foreach ( $cache as $key ) {
 				$_cache[$key] = false;
 			}
 
@@ -603,8 +590,7 @@ class wp_smart_links
 			$cache = wp_smart_links::links($cache, false);
 			$cache = wp_smart_links::terms($cache, false);
 			
-			if ( $use_cache && $object_id )
-			{
+			if ( $use_cache && $object_id ) {
 				delete_post_meta($object_id, '_smart_links_cache_wp');
 				add_post_meta($object_id, '_smart_links_cache_wp', $cache, true );
 			}
@@ -612,10 +598,8 @@ class wp_smart_links
 		
 		#dump($links, $cache);
 		
-		foreach ( $cache as $ref => $link )
-		{
-			if ( !$links[$ref] )
-			{
+		foreach ( $cache as $ref => $link ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = $link;
 			}
 		}
@@ -624,31 +608,41 @@ class wp_smart_links
 	} # wp()
 	
 	
-	#
-	# entries()
-	#
+	/**
+	 * entries()
+	 *
+	 * @param array $links
+	 * @param bool $use_cache
+	 * @return array $links
+	 **/
 	
-	function entries($links, $use_cache = true)
-	{
+	function entries($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug;
 		
+		# pages: check in section first
+		if ( is_page() ) {
+			global $wp_the_query;
+			$page = get_post($wp_the_query->get_queried_object_id());
+			while ( $page->post_parent ) {
+				$page = get_post($page->post_parent);
+			}
+			$links = wp_smart_links::section($page->ID, $links);
+		}
+		
 		# build cache, if not available
 		if ( !$use_cache
 			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
-			)
-		{
+		) {
 			global $wpdb;
-
+			
 			$cache = array();
 			$match_sql = array();
 			$seek_sql = array();
-
-		    foreach ( $links as $ref => $found )
-			{
-				if ( $found )
-				{
+			
+		    foreach ( $links as $ref => $found ) {
+				if ( $found ) {
 					continue;
 				}
 		
@@ -662,16 +656,14 @@ class wp_smart_links
 			
 			#dump($ref, $ref_sql);
 
-			if ( !empty($seek_sql) )
-			{	
+			if ( !empty($seek_sql) ) {	
 				$match_sql = implode(" ", $match_sql);
 				$seek_sql = implode(" OR ", $seek_sql);
 		
 				$filter_sql = "post_type = 'page' AND ID <> " . intval($object_id)
 					. " OR post_type = 'post' AND ID <> " . intval($object_id);
 		
-				if ( !is_page() )
-				{
+				if ( !is_page() ) {
 					$filter_sql .= " AND post_date > '" . get_the_time('Y-m-d') . "'";
 				}
 				
@@ -706,17 +698,14 @@ class wp_smart_links
 				#dump($sql);
 				#dump($wpdb->get_results($sql));
 				
-				if ( $res = (array) $wpdb->get_results($sql) )
-				{
+				if ( $res = (array) $wpdb->get_results($sql) ) {
 					update_post_cache($res);
 			
 					#dump($res);
 					#dump($links);
 			
-					foreach ( $res as $row )
-					{
-						if ( !$cache[$row->ref] )
-						{
+					foreach ( $res as $row ) {
+						if ( !$cache[$row->ref] ) {
 							$cache[$row->ref] = array(
 								'link' => get_permalink($row->ID),
 								'title' => $row->post_title
@@ -726,8 +715,7 @@ class wp_smart_links
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
-			{
+			if ( $use_cache && $object_id && !is_admin() ) {
 				delete_post_meta($object_id, '_smart_links_cache_entries');
 				add_post_meta($object_id, '_smart_links_cache_entries', $cache, true );
 			}
@@ -735,24 +723,25 @@ class wp_smart_links
 		
 		#dump($cache);
 		
-		foreach ( $cache as $ref => $link )
-		{
-			if ( !$links[$ref] )
-			{
+		foreach ( $cache as $ref => $link ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = $link;
 			}
 		}
 		
 		return $links;
 	} # entries()
-
-
-	#
-	# terms()
-	#
-
-	function terms($links, $use_cache = true)
-	{
+	
+	
+	/**
+	 * terms()
+	 *
+	 * @param array $links
+	 * @param bool $use_cache
+	 * @return array $links
+	 **/
+	
+	function terms($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug;
@@ -760,18 +749,15 @@ class wp_smart_links
 		# build cache, if not available
 		if ( !$use_cache
 		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
-			)
-		{
+		) {
 			global $wpdb;
 			
 			$cache = array();
 			$match_sql = array();
 			$seek_sql = array();
 
-		    foreach ( $links as $ref => $found )
-			{
-				if ( $found )
-				{
+			foreach ( $links as $ref => $found ) {
+				if ( $found ) {
 					continue;
 				}
 			
@@ -782,8 +768,7 @@ class wp_smart_links
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
-			if ( !empty($seek_sql) )
-			{	
+			if ( !empty($seek_sql) ) {
 				$match_sql = implode(" ", $match_sql);
 				$seek_sql = implode(" OR ", $seek_sql);
 			
@@ -818,14 +803,11 @@ class wp_smart_links
 
 				#dump($sql);
 			
-				if ( $res = (array) $wpdb->get_results($sql) )
-				{
+				if ( $res = (array) $wpdb->get_results($sql) ) {
 					#dump($res);
 					
-					foreach ( $res as $row )
-					{
-						if ( !$cache[$row->ref] )
-						{
+					foreach ( $res as $row ) {
+						if ( !$cache[$row->ref] ) {
 							$cache[$row->ref] = array(
 								'link' => $row->is_cat ? get_category_link($row->id) : get_tag_link($row->id),
 								'title' => $row->title
@@ -835,31 +817,31 @@ class wp_smart_links
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
-			{
+			if ( $use_cache && $object_id && !is_admin() ) {
 				delete_post_meta($object_id, '_smart_links_cache_terms');
 				add_post_meta($object_id, '_smart_links_cache_terms', $cache, true );
 			}
 		}
 
-		foreach ( $cache as $ref => $link )
-		{
-			if ( !$links[$ref] )
-			{
+		foreach ( $cache as $ref => $link ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = $link;
 			}
 		}
 
 		return $links;
 	} # terms()
-
 	
-	#
-	# links()
-	#
-
-	function links($links, $use_cache = true)
-	{
+	
+	/**
+	 * links()
+	 *
+	 * @param array $links
+	 * @param bool $use_cache
+	 * @return array $links
+	 **/
+	
+	function links($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug;
@@ -867,18 +849,15 @@ class wp_smart_links
 		# build cache, if not available
 		if ( !$use_cache
 		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
-			)
-		{
+		) {
 			global $wpdb;
 
 			$cache = array();
 			$match_sql = array();
 			$seek_sql = array();
 
-		    foreach ( $links as $ref => $found )
-			{
-				if ( $found )
-				{
+			foreach ( $links as $ref => $found ) {
+				if ( $found ) {
 					continue;
 				}
 			
@@ -889,8 +868,7 @@ class wp_smart_links
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
-			if ( !empty($seek_sql) )
-			{	
+			if ( !empty($seek_sql) ) {
 				$match_sql = implode(" ", $match_sql);
 				$seek_sql = implode(" OR ", $seek_sql);
 			
@@ -907,14 +885,11 @@ class wp_smart_links
 
 				#dump($sql);
 				
-				if ( $res = (array) $wpdb->get_results($sql) )
-				{
+				if ( $res = (array) $wpdb->get_results($sql) ) {
 					#dump($res);
 				
-					foreach ( $res as $row )
-					{
-						if ( !$cache[$row->ref] )
-						{
+					foreach ( $res as $row ) {
+						if ( !$cache[$row->ref] ) {
 							$cache[$row->ref] = array(
 								'link' => $row->link_url,
 								'title' => $row->link_name
@@ -924,17 +899,14 @@ class wp_smart_links
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
-			{
+			if ( $use_cache && $object_id && !is_admin() ) {
 				delete_post_meta($object_id, '_smart_links_cache_links');
 				add_post_meta($object_id, '_smart_links_cache_links', $cache, true );
 			}
 		}
 
-		foreach ( $cache as $ref => $link )
-		{
-			if ( !$links[$ref] )
-			{
+		foreach ( $cache as $ref => $link ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = $link;
 			}
 		}
@@ -943,12 +915,16 @@ class wp_smart_links
 	} # links()
 	
 	
-	#
-	# section()
-	#
+	/**
+	 * section()
+	 *
+	 * @param int $section_id
+	 * @param array $links
+	 * @param bool $use_cache
+	 * @return array $links
+	 **/
 	
-	function section($section_id, $links, $use_cache = true)
-	{
+	function section($section_id, $links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug;
@@ -956,23 +932,18 @@ class wp_smart_links
 		# build cache, if not available
 		if ( !$use_cache
 			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
-			)
-		{
+		) {
 			global $wpdb;
 			global $page_filters;
 			
 			$cache = array();
-		
-			if ( isset($page_filters[$section_id]) )
-			{
+			
+			if ( isset($page_filters[$section_id]) ) {
 				$parents_sql = $page_filters[$section_id];
-			}
-			else
-			{
+			} else {
 				$parents = array($section_id);
 
-				do
-				{
+				do {
 					$old_parents = $parents;
 
 					$parents_sql = implode(', ', $parents);
@@ -994,10 +965,8 @@ class wp_smart_links
 			$match_sql = array();
 			$seek_sql = array();
 
-		    foreach ( $links as $ref => $found )
-			{
-				if ( $found )
-				{
+		    foreach ( $links as $ref => $found ) {
+				if ( $found ) {
 					continue;
 				}
 			
@@ -1009,8 +978,7 @@ class wp_smart_links
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
-			if ( !empty($seek_sql) )
-			{	
+			if ( !empty($seek_sql) ) {
 				$match_sql = implode(" ", $match_sql);
 				$seek_sql = implode(" OR ", $seek_sql);
 			
@@ -1042,16 +1010,13 @@ class wp_smart_links
 
 				#dump($sql);
 				
-				if ( $res = (array) $wpdb->get_results($sql) )
-				{
+				if ( $res = (array) $wpdb->get_results($sql) ) {
 					update_post_cache($res);
-				
+					
 					#dump($res);
 					
-					foreach ( $res as $row )
-					{
-						if ( !$cache[$row->ref] )
-						{
+					foreach ( $res as $row ) {
+						if ( !$cache[$row->ref] ) {
 							$cache[$row->ref] = array(
 								'link' => get_permalink($row->ID),
 								'title' => $row->post_title
@@ -1061,8 +1026,7 @@ class wp_smart_links
 				}
 			}
 			
-			if ( $use_cache && $object_id && !is_admin() )
-			{
+			if ( $use_cache && $object_id && !is_admin() ) {
 				delete_post_meta($object_id, '_smart_links_cache_section_' . $section_id);
 				add_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache, true );
 			}
@@ -1070,10 +1034,8 @@ class wp_smart_links
 		
 		#dump($links, $cache);
 
-		foreach ( $cache as $ref => $link )
-		{
-			if ( !$links[$ref] )
-			{
+		foreach ( $cache as $ref => $link ) {
+			if ( !$links[$ref] ) {
 				$links[$ref] = $link;
 			}
 		}
@@ -1084,18 +1046,19 @@ class wp_smart_links
 	} # section()
 	
 	
-	#
-	# factory()
-	#
+	/**
+	 * factory()
+	 *
+	 * @param string $domain
+	 * @return callback $callback
+	 **/
 	
-	function factory($domain)
-	{
+	function factory($domain) {
 		global $wpdb;
 		
 		$ref = trim(strip_tags($domain));
 		
-		if ( !$ref )
-		{
+		if ( !$ref ) {
 			return create_function('$in', 'return $in;');
 		}
 		
@@ -1120,23 +1083,22 @@ class wp_smart_links
 
 		#dump($sql);
 		
-		if ( $section_id = $wpdb->get_var($sql) )
-		{
+		if ( $section_id = $wpdb->get_var($sql) ) {
 			return create_function('$in', 'return wp_smart_links::section(' . $section_id . ', $in);');
-		}
-		else
-		{
+		} else {
 			return create_function('$in', 'return $in;');
 		}
 	} # factory()
 	
 	
-	#
-	# clear_cache()
-	#
+	/**
+	 * clear_cache()
+	 *
+	 * @param mixed $in
+	 * @return mixed $in
+	 **/
 	
-	function clear_cache($in = null)
-	{
+	function clear_cache($in = null) {
 		global $wpdb;
 		
 		$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_smart_links_cache%'");
@@ -1145,15 +1107,12 @@ class wp_smart_links
 	} # clear_cache()
 } # wp_smart_links
 
-wp_smart_links::init();
-
 
 #
 # Obsolete functions
 #
 
-function sem_smart_link_set_engine($domain, $callback)
-{
+function sem_smart_link_set_engine($domain, $callback) {
 	return smart_links::register_engine($domain, $callback);
 } # sem_smart_link_set_engine()
 ?>
