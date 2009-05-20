@@ -18,7 +18,7 @@ http://www.mesoconcepts.com/license/
 **/
 
 if ( is_admin() && !class_exists('widget_utils') ) {
-	include dirname(__FILE__) . '/widget-utils.php';
+	include dirname(__FILE__) . '/widget-utils/widget-utils.php';
 }
 
 @define('smart_links_debug', false);
