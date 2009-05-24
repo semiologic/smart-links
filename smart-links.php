@@ -221,7 +221,7 @@ class smart_links {
 					/x", '', $label);
 			}
 
-			return '<a href="' . esc_attr($ref) . '" title="' . esc_attr($label) . '">'
+			return '<a href="' . esc_url($ref) . '" title="' . esc_attr($label) . '">'
 				. $label
 				. '</a>';
 		
@@ -304,7 +304,7 @@ class smart_links {
 			return $label;
 		}
 		
-		return '<a href="' . esc_attr($link['link']) . '"'
+		return '<a href="' . esc_url($link['link']) . '"'
 			. ' title="' . esc_attr($link['title']) . '"'
 			. '>' . $label . '</a>';
 	} # process()
