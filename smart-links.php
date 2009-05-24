@@ -65,7 +65,7 @@ class smart_links {
 		}
 		
 		#dump($smart_links_aliases);
-		#dump(htmlspecialchars($str));
+		#dump(esc_html($str));
 		
 		# pre-process smart links
 		$str = preg_replace_callback("/
@@ -201,8 +201,8 @@ class smart_links {
 			$ref = strtolower($label);
 		}
 		
-		#dump(htmlspecialchars($label));
-		#dump(htmlspecialchars($ref));
+		#dump(esc_html($label));
+		#dump(esc_html($ref));
 		
 		# catch raw urls
 		if ( preg_match("/
@@ -221,7 +221,7 @@ class smart_links {
 					/x", '', $label);
 			}
 
-			return '<a href="' . htmlspecialchars($ref) . '" title="' . htmlspecialchars($label) . '">'
+			return '<a href="' . esc_attr($ref) . '" title="' . esc_attr($label) . '">'
 				. $label
 				. '</a>';
 		
@@ -304,8 +304,8 @@ class smart_links {
 			return $label;
 		}
 		
-		return '<a href="' . htmlspecialchars($link['link']) . '"'
-			. ' title="' . htmlspecialchars($link['title']) . '"'
+		return '<a href="' . esc_attr($link['link']) . '"'
+			. ' title="' . esc_attr($link['title']) . '"'
 			. '>' . $label . '</a>';
 	} # process()
 	
