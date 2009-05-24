@@ -19,9 +19,6 @@ This software is copyright Mesoconcepts and is distributed under the terms of th
 http://www.mesoconcepts.com/license/
 **/
 
-if ( is_admin() && !class_exists('widget_utils') ) {
-	include dirname(__FILE__) . '/widget-utils/widget-utils.php';
-}
 
 if ( !defined('smart_links_debug') )
 	define('smart_links_debug', false);
@@ -40,6 +37,12 @@ add_filter('the_excerpt', array('smart_links', 'replace'), 8);
 add_filter('widget_text', array('smart_links', 'replace'), 8);
 
 class smart_links {
+	/**
+	 * undocumented function
+	 *
+	 * @return void
+	 **/
+	
 	/**
 	 * replace()
 	 *
@@ -475,27 +478,23 @@ class smart_links_search {
  * @package Smart Links
  **/
 
-foreach ( array('default', 'wp', 'wordpress') as $domain )
-{
+foreach ( array('default', 'wp', 'wordpress') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
 }
 
-foreach ( array('entries', 'pages', 'posts') as $domain )
-{
+foreach ( array('entries', 'pages', 'posts') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
 	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
 	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
 }
 
-foreach ( array('terms', 'cats', 'tags') as $domain )
-{
+foreach ( array('terms', 'cats', 'tags') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
 	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
 	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
 }
 
-foreach ( array('links', 'blogroll') as $domain )
-{
+foreach ( array('links', 'blogroll') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'links'));
 	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
 	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
@@ -518,21 +517,19 @@ foreach ( array(
 	'update_option_sidebars_widgets',
 	'update_option_sem5_options',
 	'update_option_sem6_options',
-	) as $hook )
-{
-	add_action($hook, array('wp_smart_links', 'clear_cache'));
+	) as $hook ) {
+	add_action($hook, array('wp_smart_links', 'flush_cache'));
 }
 
-if ( version_compare(mysql_get_server_info(), '4.1', '<') )
-{
+if ( version_compare(mysql_get_server_info(), '4.1', '<') ) {
 	add_action('admin_notices', array('wp_smart_links', 'mysql_warning'));
 }
 
 add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 
-register_activation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
-register_deactivation_hook(__FILE__, array('wp_smart_links', 'clear_cache'));
+register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
+register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
 
 class wp_smart_links {
 	/**
@@ -594,8 +591,7 @@ class wp_smart_links {
 			$cache = wp_smart_links::terms($cache, false);
 			
 			if ( $use_cache && $object_id ) {
-				delete_post_meta($object_id, '_smart_links_cache_wp');
-				add_post_meta($object_id, '_smart_links_cache_wp', $cache, true );
+				update_post_meta($object_id, '_smart_links_cache_wp', $cache);
 			}
 		}
 		
@@ -719,8 +715,7 @@ class wp_smart_links {
 			}
 
 			if ( $use_cache && $object_id && !is_admin() ) {
-				delete_post_meta($object_id, '_smart_links_cache_entries');
-				add_post_meta($object_id, '_smart_links_cache_entries', $cache, true );
+				update_post_meta($object_id, '_smart_links_cache_entries', $cache);
 			}
 		}
 		
@@ -821,8 +816,7 @@ class wp_smart_links {
 			}
 
 			if ( $use_cache && $object_id && !is_admin() ) {
-				delete_post_meta($object_id, '_smart_links_cache_terms');
-				add_post_meta($object_id, '_smart_links_cache_terms', $cache, true );
+				update_post_meta($object_id, '_smart_links_cache_terms', $cache);
 			}
 		}
 
@@ -903,8 +897,7 @@ class wp_smart_links {
 			}
 
 			if ( $use_cache && $object_id && !is_admin() ) {
-				delete_post_meta($object_id, '_smart_links_cache_links');
-				add_post_meta($object_id, '_smart_links_cache_links', $cache, true );
+				update_post_meta($object_id, '_smart_links_cache_links', $cache);
 			}
 		}
 
@@ -1030,8 +1023,7 @@ class wp_smart_links {
 			}
 			
 			if ( $use_cache && $object_id && !is_admin() ) {
-				delete_post_meta($object_id, '_smart_links_cache_section_' . $section_id);
-				add_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache, true );
+				update_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache);
 			}
 		}
 		
@@ -1095,19 +1087,24 @@ class wp_smart_links {
 	
 	
 	/**
-	 * clear_cache()
+	 * flush_cache()
 	 *
 	 * @param mixed $in
 	 * @return mixed $in
 	 **/
 	
-	function clear_cache($in = null) {
+	function flush_cache($in = null) {
 		global $wpdb;
 		
-		$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_smart_links_cache%'");
+		$post_ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE LIKE '\_smart\_links\_cache%'", $post_meta_key));
+		if ( $post_ids ) {
+			$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
+			foreach ( $post_ids as $post_id )
+				wp_cache_delete($post_id, 'post_meta');
+		}
 		
 		return $in;
-	} # clear_cache()
+	} # flush_cache()
 } # wp_smart_links
 
 
