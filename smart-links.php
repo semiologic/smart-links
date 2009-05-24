@@ -523,6 +523,9 @@ foreach ( array(
 
 if ( version_compare(mysql_get_server_info(), '4.1', '<') ) {
 	add_action('admin_notices', array('wp_smart_links', 'mysql_warning'));
+	remove_filter('the_content', array('smart_links', 'replace'), 8);
+	remove_filter('the_excerpt', array('smart_links', 'replace'), 8);
+	remove_filter('widget_text', array('smart_links', 'replace'), 8);
 }
 
 add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
@@ -540,7 +543,7 @@ class wp_smart_links {
 	
 	function widget_config_affected() {
 		echo '<li>'
-			. 'Smart Links (exclude only)'
+			. __('Smart Links (exclude only)', 'smart-links')
 			. '</li>';
 	} # widget_config_affected()
 	
@@ -553,8 +556,10 @@ class wp_smart_links {
 	
 	function mysql_warning() {
 		echo '<div class="error">'
-			. '<p><b style="color: firebrick;">Smart Link Error</b><br /><b>Your MySQL version is lower than 4.1.</b> It\'s time to <a href="http://www.semiologic.com/resources/wp-basics/wordpress-server-requirements/">change hosts</a> if yours doesn\'t want to upgrade.</p>'
-			. '</div>';
+			. '<p><strong>' . __('Smart Link Error', 'smart-links') . '</strong><br />' . "\n"
+			. sprintf(__('Your MySQL version is lower than 4.1. It\'s time to <a href="%s">change hosts</a> if yours doesn\'t want to upgrade.', 'smart-links'), 'http://www.semiologic.com/resources/wp-basics/wordpress-server-requirements/')
+			. '</p>'
+			. '</div>' . "\n";
 	} # mysql_warning()
 	
 	
