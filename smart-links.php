@@ -23,7 +23,8 @@ if ( is_admin() && !class_exists('widget_utils') ) {
 	include dirname(__FILE__) . '/widget-utils/widget-utils.php';
 }
 
-@define('smart_links_debug', false);
+if ( !defined('smart_links_debug') )
+	define('smart_links_debug', false);
 
 /**
  * smart_links
@@ -239,7 +240,7 @@ class smart_links {
 				[0-9a-z_-]+
 				(?:\.[0-9a-z_-]+)+
 			)
-			/x", $ref, $match) ) {
+			/ix", $ref, $match) ) {
 			# process directly
 			$email = trim($match[1]);
 			$email = antispambot($email);
