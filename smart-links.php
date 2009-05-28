@@ -246,7 +246,6 @@ class smart_links {
 			/ix", $ref, $match) ) {
 			# process directly
 			$email = trim($match[1]);
-			$email = antispambot($email);
 
 			return '<a href="mailto:' . $email . '" title="' . $email . '">'
 				. $label
