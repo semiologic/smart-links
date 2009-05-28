@@ -237,11 +237,11 @@ class smart_links {
 		} elseif ( preg_match("/
 			(?:mailto:\s*)?
 			(							# something that looks like an email
-				[0-9a-z_-]+
-				(?:\.[0-9a-z_-]+)*
+				[a-z0-9%_|~-]+
+				(?:\.[a-z0-9%_|~-]+)*
 				@
-				[0-9a-z_-]+
-				(?:\.[0-9a-z_-]+)+
+				[a-z0-9%_|~-]+
+				(?:\.[a-z0-9%_|~-]+)+
 			)
 			/ix", $ref, $match) ) {
 			# process directly
