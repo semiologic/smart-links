@@ -533,6 +533,8 @@ add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config
 register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
 register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
 
+add_action('save_post', array('wp_smart_links', 'save_post'));
+
 class wp_smart_links {
 	/**
 	 * widget_config_affected()
@@ -926,6 +928,7 @@ class wp_smart_links {
 	
 	function section($section_id, $links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
+		$section_id = (int) $section_id;
 		
 		$use_cache &= !smart_links_debug;
 		
@@ -938,29 +941,8 @@ class wp_smart_links {
 			
 			$cache = array();
 			
-			if ( isset($page_filters[$section_id]) ) {
-				$parents_sql = $page_filters[$section_id];
-			} else {
-				$parents = array($section_id);
-
-				do {
-					$old_parents = $parents;
-
-					$parents_sql = implode(', ', $parents);
-
-					$parents = (array) $wpdb->get_col("
-						SELECT	posts.ID
-						FROM	$wpdb->posts as posts
-						WHERE	posts.post_status = 'publish'
-						AND		posts.post_type = 'page'
-						AND		( posts.ID IN ( $parents_sql ) OR posts.post_parent IN ( $parents_sql ) )
-						");
-					
-					sort($parents);
-				} while ( $parents != $old_parents );
-
-				$page_filters[$section_id] = $parents_sql;
-			}
+			if ( !get_transient('cached_section_ids') )
+				wp_smart_links::cache_section_ids();
 
 			$match_sql = array();
 			$seek_sql = array();
@@ -981,7 +963,7 @@ class wp_smart_links {
 			if ( !empty($seek_sql) ) {
 				$match_sql = implode(" ", $match_sql);
 				$seek_sql = implode(" OR ", $seek_sql);
-			
+				
 				$filter_sql = "post_type = 'page' AND ID <> " . intval($object_id);
 				
 				$exclude_sql = "
@@ -1001,9 +983,13 @@ class wp_smart_links {
 						posts.*
 					FROM
 						$wpdb->posts as posts
+					JOIN
+						$wpdb->postmeta as section_filter
+					ON	section_filter.post_id = posts.ID
+					AND	section_filter.meta_key = '_section_id'
+					AND	section_filter.meta_value = '$section_id'
 					WHERE
 						post_status = 'publish' AND ( $filter_sql ) AND ( $seek_sql )
-						AND ( ID IN ( $parents_sql ) OR post_parent IN ( $parents_sql ) )
 						AND ID NOT IN ( $exclude_sql )
 					ORDER BY posts.post_title
 					";
@@ -1088,6 +1074,51 @@ class wp_smart_links {
 			return create_function('$in', 'return $in;');
 		}
 	} # factory()
+	
+	
+	/**
+	 * save_post()
+	 *
+	 * @param int $post_id
+	 * @return void
+	 **/
+
+	function save_post($post_id) {
+		$post = get_post($post_id);
+		
+		if ( $post->post_type != 'page' )
+			return;
+		
+		delete_transient('cached_section_ids');
+	} # save_post()
+	
+	
+	/**
+	 * cache_section_ids()
+	 *
+	 * @return void
+	 **/
+
+	function cache_section_ids() {
+		global $wpdb;
+		
+		$pages = $wpdb->get_results("
+			SELECT	*
+			FROM	$wpdb->posts
+			WHERE	post_type = 'page'
+			");
+		
+		update_post_cache($pages);
+		
+		foreach ( $pages as $page ) {
+			$parent = $page;
+			while ( $parent->post_parent )
+				$parent = get_post($parent->post_parent);
+			update_post_meta($page->ID, '_section_id', "$parent->ID");
+		}
+		
+		set_transient('cached_section_ids', 1);
+	} # cache_section_ids()
 	
 	
 	/**
