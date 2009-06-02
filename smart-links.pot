@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 4.2\n"
 "Report-Msgid-Bugs-To: https://tickets.semiologic.com\n"
-"POT-Creation-Date: 2009-05-24 14:47+0200\n"
+"POT-Creation-Date: 2009-06-02 09:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,15 +16,15 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: smart-links.php:546
+#: smart-links.php:547
 msgid "Smart Links (exclude only)"
 msgstr ""
 
-#: smart-links.php:559
+#: smart-links.php:560
 msgid "Smart Link Error"
 msgstr ""
 
-#: smart-links.php:560
+#: smart-links.php:561
 #, php-format
 msgid ""
 "Your MySQL version is lower than 4.1. It's time to <a href=\"%s\">change "
