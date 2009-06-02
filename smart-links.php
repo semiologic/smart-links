@@ -520,13 +520,6 @@ foreach ( array(
 	add_action($hook, array('wp_smart_links', 'flush_cache'));
 }
 
-if ( version_compare(mysql_get_server_info(), '4.1', '<') ) {
-	add_action('admin_notices', array('wp_smart_links', 'mysql_warning'));
-	remove_filter('the_content', array('smart_links', 'replace'), 8);
-	remove_filter('the_excerpt', array('smart_links', 'replace'), 8);
-	remove_filter('widget_text', array('smart_links', 'replace'), 8);
-}
-
 add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
 
@@ -547,21 +540,6 @@ class wp_smart_links {
 			. __('Smart Links (exclude only)', 'smart-links')
 			. '</li>';
 	} # widget_config_affected()
-	
-	
-	/**
-	 * mysql_warning()
-	 *
-	 * @return void
-	 **/
-	
-	function mysql_warning() {
-		echo '<div class="error">'
-			. '<p><strong>' . __('Smart Link Error', 'smart-links') . '</strong><br />' . "\n"
-			. sprintf(__('Your MySQL version is lower than 4.1. It\'s time to <a href="%s">change hosts</a> if yours doesn\'t want to upgrade.', 'smart-links'), 'http://www.semiologic.com/resources/wp-basics/wordpress-server-requirements/')
-			. '</p>'
-			. '</div>' . "\n";
-	} # mysql_warning()
 	
 	
 	/**
@@ -672,16 +650,6 @@ class wp_smart_links {
 					$filter_sql .= " AND post_date > '" . get_the_time('Y-m-d') . "'";
 				}
 				
-				$exclude_sql = "
-					SELECT	exclude.post_id
-					FROM	$wpdb->postmeta as exclude
-					LEFT JOIN $wpdb->postmeta as exception
-					ON		exception.post_id = exclude.post_id
-					AND		exception.meta_key = '_widgets_exception'
-					WHERE	exclude.meta_key = '_widgets_exclude'
-					AND		exception.post_id IS NULL
-					";
-		
 				$sql = "
 					# wp_smart_links::entries()
 					SELECT
@@ -693,9 +661,15 @@ class wp_smart_links {
 						posts.*
 					FROM
 						$wpdb->posts as posts
+					LEFT JOIN $wpdb->postmeta as widgets_exclude
+					ON		widgets_exclude.post_id = posts.ID
+					AND		widgets_exclude.meta_key = '_widgets_exclude'
+					LEFT JOIN $wpdb->postmeta as widgets_exception
+					ON		widgets_exception.post_id = posts.ID
+					AND		widgets_exception.meta_key = '_widgets_exception'
 					WHERE
 						post_status = 'publish' AND ( $filter_sql ) AND ( $seek_sql )
-						AND ID NOT IN ( $exclude_sql )
+						AND	( widgets_exclude.post_ID IS NULL OR widgets_exception IS NOT NULL )
 					ORDER BY
 						is_page DESC, post_title, post_date DESC
 					";
@@ -966,16 +940,6 @@ class wp_smart_links {
 				
 				$filter_sql = "post_type = 'page' AND ID <> " . intval($object_id);
 				
-				$exclude_sql = "
-					SELECT	exclude.post_id
-					FROM	$wpdb->postmeta as exclude
-					LEFT JOIN $wpdb->postmeta as exception
-					ON		exception.post_id = exclude.post_id
-					AND		exception.meta_key = '_widgets_exception'
-					WHERE	exclude.meta_key = '_widgets_exclude'
-					AND		exception.post_id IS NULL
-					";
-				
 				$sql = "
 					# wp_smart_links::section() / fetch links
 					SELECT
@@ -988,9 +952,15 @@ class wp_smart_links {
 					ON	section_filter.post_id = posts.ID
 					AND	section_filter.meta_key = '_section_id'
 					AND	section_filter.meta_value = '$section_id'
+					LEFT JOIN $wpdb->postmeta as widgets_exclude
+					ON		widgets_exclude.post_id = posts.ID
+					AND		widgets_exclude.meta_key = '_widgets_exclude'
+					LEFT JOIN $wpdb->postmeta as widgets_exception
+					ON		widgets_exception.post_id = posts.ID
+					AND		widgets_exception.meta_key = '_widgets_exception'
 					WHERE
 						post_status = 'publish' AND ( $filter_sql ) AND ( $seek_sql )
-						AND ID NOT IN ( $exclude_sql )
+						AND	( widgets_exclude.post_ID IS NULL OR widgets_exception IS NOT NULL )
 					ORDER BY posts.post_title
 					";
 
@@ -1131,7 +1101,7 @@ class wp_smart_links {
 	function flush_cache($in = null) {
 		global $wpdb;
 		
-		$post_ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE LIKE '\_smart\_links\_cache%'", $post_meta_key));
+		$post_ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'", $post_meta_key));
 		if ( $post_ids ) {
 			$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
 			foreach ( $post_ids as $post_id )
