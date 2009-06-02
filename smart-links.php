@@ -1018,8 +1018,7 @@ class wp_smart_links {
 		}
 		
 		$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-		$seek_sql = 'TRIM(LOWER(posts.post_title)) LIKE LOWER("' . $wpdb->escape($ref_sql) . '")'
-			. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
+		$seek_sql = 'posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
 
 		$filter_sql = "post_type = 'page' AND post_parent = 0";
 		
@@ -1080,11 +1079,19 @@ class wp_smart_links {
 		
 		update_post_cache($pages);
 		
+		$to_cache = array();
+		foreach ( $pages as $page )
+			$to_cache[] = $page->ID;
+		
+		update_postmeta_cache($to_cache);
+		
 		foreach ( $pages as $page ) {
 			$parent = $page;
 			while ( $parent->post_parent )
 				$parent = get_post($parent->post_parent);
-			update_post_meta($page->ID, '_section_id', "$parent->ID");
+			
+			if ( "$parent->ID" !== get_post_meta($page->ID, '_section_id', true) )
+				update_post_meta($page->ID, '_section_id', "$parent->ID");
 		}
 		
 		set_transient('cached_section_ids', 1);
