@@ -557,7 +557,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
+			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
 		) {
 			$cache = array_keys($links);
 
@@ -616,7 +616,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
+			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
 		) {
 			global $wpdb;
 			
@@ -726,7 +726,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
+		 	|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
 		) {
 			global $wpdb;
 			
@@ -825,7 +825,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-		 	|| ( $cache = get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
+		 	|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
 		) {
 			global $wpdb;
 
@@ -908,7 +908,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
+			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
 		) {
 			global $wpdb;
 			global $page_filters;
