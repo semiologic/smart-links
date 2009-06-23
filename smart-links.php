@@ -6,7 +6,7 @@ Description: Lets you write links as [link text->link ref] (explicit link), or a
 Author: Denis de Bernardy
 Version: 4.2 RC
 Author URI: http://www.getsemiologic.com
-Text Domain: smart-links-info
+Text Domain: smart-links
 Domain Path: /lang
 */
 
