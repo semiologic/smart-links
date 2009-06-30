@@ -1108,7 +1108,7 @@ class wp_smart_links {
 	function flush_cache($in = null) {
 		global $wpdb;
 		
-		$post_ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'", $post_meta_key));
+		$post_ids = $wpdb->get_col("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
 		if ( $post_ids ) {
 			$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
 			foreach ( $post_ids as $post_id )
