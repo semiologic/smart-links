@@ -38,12 +38,6 @@ add_filter('widget_text', array('smart_links', 'replace'), 8);
 
 class smart_links {
 	/**
-	 * undocumented function
-	 *
-	 * @return void
-	 **/
-	
-	/**
 	 * replace()
 	 *
 	 * @param string $str
@@ -100,6 +94,8 @@ class smart_links {
 			\]								# ]
 			/iUx", array('smart_links', 'pre_process'), $str);
 		
+		#dump(esc_html($str));
+		
 		# fetch links
 		smart_links::fetch();
 		
@@ -146,6 +142,8 @@ class smart_links {
 			\]								# ]
 			/Ux", array('smart_links', 'process'), $str);
 		
+		#dump(esc_html($str));
+		
 		# unescape smart links
 		$str = preg_replace("/
 			`								# a backtick
@@ -176,7 +174,9 @@ class smart_links {
 			\]								# ]
 			`??								# optional backtick (greedy)
 			/iUx", "[$1-&gt;$2]", $str);
-
+		
+		#dump(esc_html($str));
+		
 		return $str;
 	} # replace()
 	
@@ -210,11 +210,13 @@ class smart_links {
 		# catch raw urls
 		if ( preg_match("/
 			(?:							# something that looks like a url
-				\/
+				^\/
 				|
-				\#
+				^\#
 				|
-				\?
+				^\?
+				|
+				:\/\/
 			)
 			/x", $ref) ) {
 			# process directly
@@ -223,7 +225,7 @@ class smart_links {
 					^.+:\/\/
 					/x", '', $label);
 			}
-
+			
 			return '<a href="' . esc_url($ref) . '" title="' . esc_attr($label) . '">'
 				. $label
 				. '</a>';
