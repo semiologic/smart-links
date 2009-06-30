@@ -557,7 +557,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
+			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
 		) {
 			$cache = array_keys($links);
 
@@ -616,7 +616,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
+			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
 		) {
 			global $wpdb;
 			
@@ -669,7 +669,7 @@ class wp_smart_links {
 					AND		widgets_exception.meta_key = '_widgets_exception'
 					WHERE
 						post_status = 'publish' AND ( $filter_sql ) AND ( $seek_sql )
-						AND	( widgets_exclude.post_ID IS NULL OR widgets_exception IS NOT NULL )
+						AND	( widgets_exclude.post_id IS NULL OR widgets_exception.post_id IS NOT NULL )
 					ORDER BY
 						is_page DESC, post_title, post_date DESC
 					";
@@ -726,7 +726,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-		 	|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
+		 	|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
 		) {
 			global $wpdb;
 			
@@ -825,7 +825,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-		 	|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
+		 	|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
 		) {
 			global $wpdb;
 
@@ -908,7 +908,7 @@ class wp_smart_links {
 		
 		# build cache, if not available
 		if ( !$use_cache
-			|| ( $cache = (string) get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
+			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
 		) {
 			global $wpdb;
 			global $page_filters;
@@ -960,7 +960,7 @@ class wp_smart_links {
 					AND		widgets_exception.meta_key = '_widgets_exception'
 					WHERE
 						post_status = 'publish' AND ( $filter_sql ) AND ( $seek_sql )
-						AND	( widgets_exclude.post_ID IS NULL OR widgets_exception IS NOT NULL )
+						AND	( widgets_exclude.post_id IS NULL OR widgets_exception.post_id IS NOT NULL )
 					ORDER BY posts.post_title
 					";
 
