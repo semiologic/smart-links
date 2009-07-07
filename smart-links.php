@@ -518,6 +518,9 @@ foreach ( array(
 	'update_option_sidebars_widgets',
 	'update_option_sem5_options',
 	'update_option_sem6_options',
+		
+	'flush_cache',
+	'update_option_db_version',
 	) as $hook ) {
 	add_action($hook, array('wp_smart_links', 'flush_cache'));
 }
