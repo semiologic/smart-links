@@ -520,7 +520,7 @@ foreach ( array(
 	'update_option_sem6_options',
 		
 	'flush_cache',
-	'after_db_upgrade_version',
+	'after_db_upgrade',
 	) as $hook ) {
 	add_action($hook, array('wp_smart_links', 'flush_cache'));
 }
