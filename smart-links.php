@@ -20,6 +20,9 @@ http://www.mesoconcepts.com/license/
 **/
 
 
+load_plugin_textdomain('smart-links', false, dirname(plugin_basename(__FILE__)) . '/lang');
+
+
 if ( !defined('smart_links_debug') )
 	define('smart_links_debug', false);
 
