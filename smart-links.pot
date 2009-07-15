@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 4.2\n"
 "Report-Msgid-Bugs-To: https://tickets.semiologic.com\n"
-"POT-Creation-Date: 2009-07-07 23:06+0200\n"
+"POT-Creation-Date: 2009-07-15 22:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,16 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: smart-links.php:545
+#: smart-links-info.php:2
+msgid "Smart Links"
+msgstr ""
+
+#: smart-links-info.php:3
+msgid ""
+"Lets you write links as [link text->link ref] (explicit link), or as [link "
+"text->] (implicit link)."
+msgstr ""
+
+#: smart-links.php:548
 msgid "Smart Links (exclude only)"
 msgstr ""
