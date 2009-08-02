@@ -35,10 +35,6 @@ if ( !defined('smart_links_debug') )
 global $smart_links_engines;
 $smart_links_engines = array();
 
-add_filter('the_content', array('smart_links', 'replace'), 8);
-add_filter('the_excerpt', array('smart_links', 'replace'), 8);
-add_filter('widget_text', array('smart_links', 'replace'), 8);
-
 class smart_links {
 	/**
 	 * replace()
@@ -481,60 +477,6 @@ class smart_links_search {
  *
  * @package Smart Links
  **/
-
-foreach ( array('default', 'wp', 'wordpress') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
-}
-
-foreach ( array('entries', 'pages', 'posts') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
-}
-
-foreach ( array('terms', 'cats', 'tags') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
-}
-
-foreach ( array('links', 'blogroll') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'links'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
-}
-
-smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
-
-foreach ( array(
-	'save_post',
-	'delete_post',
-	'add_link',
-	'edit_link',
-	'delete_link',
-	'generate_rewrite_rules',
-	'switch_theme',
-	'update_option_active_plugins',
-	'update_option_show_on_front',
-	'update_option_page_on_front',
-	'update_option_page_for_posts',
-	'update_option_sidebars_widgets',
-	'update_option_sem5_options',
-	'update_option_sem6_options',
-		
-	'flush_cache',
-	'after_db_upgrade',
-	) as $hook ) {
-	add_action($hook, array('wp_smart_links', 'flush_cache'));
-}
-
-add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-
-register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
-register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
-
-add_action('save_post', array('wp_smart_links', 'save_post'));
 
 class wp_smart_links {
 	/**
@@ -1128,11 +1070,68 @@ class wp_smart_links {
 } # wp_smart_links
 
 
-#
-# Obsolete functions
-#
+# Obsolete function
 
 function sem_smart_link_set_engine($domain, $callback) {
 	return smart_links::register_engine($domain, $callback);
 } # sem_smart_link_set_engine()
+
+
+add_filter('the_content', array('smart_links', 'replace'), 8);
+add_filter('the_excerpt', array('smart_links', 'replace'), 8);
+add_filter('widget_text', array('smart_links', 'replace'), 8);
+
+foreach ( array('default', 'wp', 'wordpress') as $domain ) {
+	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
+}
+
+foreach ( array('entries', 'pages', 'posts') as $domain ) {
+	smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
+}
+
+foreach ( array('terms', 'cats', 'tags') as $domain ) {
+	smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
+}
+
+foreach ( array('links', 'blogroll') as $domain ) {
+	smart_links::register_engine($domain, array('wp_smart_links', 'links'));
+	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
+	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
+}
+
+smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
+
+foreach ( array(
+	'save_post',
+	'delete_post',
+	'add_link',
+	'edit_link',
+	'delete_link',
+	'generate_rewrite_rules',
+	'switch_theme',
+	'update_option_active_plugins',
+	'update_option_show_on_front',
+	'update_option_page_on_front',
+	'update_option_page_for_posts',
+	'update_option_sidebars_widgets',
+	'update_option_sem5_options',
+	'update_option_sem6_options',
+		
+	'flush_cache',
+	'after_db_upgrade',
+	) as $hook ) {
+	add_action($hook, array('wp_smart_links', 'flush_cache'));
+}
+
+add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
+add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
+
+register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
+register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
+
+add_action('save_post', array('wp_smart_links', 'save_post'));
 ?>
