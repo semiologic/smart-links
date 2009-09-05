@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2 RC2
+Version: 4.2 RC3
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -531,10 +531,12 @@ class wp_smart_links {
 		
 		#dump($links, $cache);
 		
-		foreach ( $cache as $ref => $link ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = $link;
-			}
+		foreach ( $links as $ref => $found ) {
+			if ( $found )
+				continue;
+			$_ref = sanitize_title(trim(strip_tags($ref)));
+			if ( isset($cache[$_ref]) )
+				$links[$ref] = $cache[$_ref];
 		}
 		
 		return $links;
@@ -582,7 +584,7 @@ class wp_smart_links {
 				$ref = trim(strip_tags($ref));
 		
 				$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
-				$seek_sql[$ref] = 'TRIM(LOWER(posts.post_title)) LIKE LOWER("' . $wpdb->escape($ref_sql) . '")'
+				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
 					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
@@ -634,8 +636,9 @@ class wp_smart_links {
 					#dump($links);
 			
 					foreach ( $res as $row ) {
-						if ( !$cache[$row->ref] ) {
-							$cache[$row->ref] = array(
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
 								'link' => apply_filters('the_permalink', get_permalink($row->ID)),
 								'title' => $row->post_title
 								);
@@ -651,10 +654,12 @@ class wp_smart_links {
 		
 		#dump($cache);
 		
-		foreach ( $cache as $ref => $link ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = $link;
-			}
+		foreach ( $links as $ref => $found ) {
+			if ( $found )
+				continue;
+			$_ref = sanitize_title(trim(strip_tags($ref)));
+			if ( isset($cache[$_ref]) )
+				$links[$ref] = $cache[$_ref];
 		}
 		
 		return $links;
@@ -692,7 +697,7 @@ class wp_smart_links {
 				$ref = trim(strip_tags($ref));
 
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'TRIM(LOWER(terms.name)) LIKE LOWER("' . $wpdb->escape($ref_sql) . '")';
+				$seek_sql[$ref] = 'terms.name LIKE "' . $wpdb->escape($ref_sql) . '"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
@@ -735,8 +740,9 @@ class wp_smart_links {
 					#dump($res);
 					
 					foreach ( $res as $row ) {
-						if ( !$cache[$row->ref] ) {
-							$cache[$row->ref] = array(
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
 								'link' => $row->is_cat ? get_category_link($row->id) : get_tag_link($row->id),
 								'title' => $row->title
 								);
@@ -750,10 +756,12 @@ class wp_smart_links {
 			}
 		}
 
-		foreach ( $cache as $ref => $link ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = $link;
-			}
+		foreach ( $links as $ref => $found ) {
+			if ( $found )
+				continue;
+			$_ref = sanitize_title(trim(strip_tags($ref)));
+			if ( isset($cache[$_ref]) )
+				$links[$ref] = $cache[$_ref];
 		}
 
 		return $links;
@@ -791,7 +799,7 @@ class wp_smart_links {
 				$ref = trim(strip_tags($ref));
 
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'TRIM(LOWER(links.link_name)) LIKE LOWER("' . $wpdb->escape($ref_sql) . '")';
+				$seek_sql[$ref] = 'links.link_name LIKE "' . $wpdb->escape($ref_sql) . '"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
@@ -816,8 +824,9 @@ class wp_smart_links {
 					#dump($res);
 				
 					foreach ( $res as $row ) {
-						if ( !$cache[$row->ref] ) {
-							$cache[$row->ref] = array(
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
 								'link' => $row->link_url,
 								'title' => $row->link_name
 								);
@@ -830,11 +839,13 @@ class wp_smart_links {
 				update_post_meta($object_id, '_smart_links_cache_links', $cache);
 			}
 		}
-
-		foreach ( $cache as $ref => $link ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = $link;
-			}
+		
+		foreach ( $links as $ref => $found ) {
+			if ( $found )
+				continue;
+			$_ref = sanitize_title(trim(strip_tags($ref)));
+			if ( isset($cache[$_ref]) )
+				$links[$ref] = $cache[$_ref];
 		}
 		
 		return $links;
@@ -879,7 +890,7 @@ class wp_smart_links {
 				$ref = trim(strip_tags($ref));
 			
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'TRIM(LOWER(posts.post_title)) LIKE LOWER("' . $wpdb->escape($ref_sql) . '")'
+				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
 					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
@@ -922,8 +933,9 @@ class wp_smart_links {
 					#dump($res);
 					
 					foreach ( $res as $row ) {
-						if ( !$cache[$row->ref] ) {
-							$cache[$row->ref] = array(
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
 								'link' => apply_filters('the_permalink', get_permalink($row->ID)),
 								'title' => $row->post_title
 								);
@@ -939,10 +951,12 @@ class wp_smart_links {
 		
 		#dump($links, $cache);
 
-		foreach ( $cache as $ref => $link ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = $link;
-			}
+		foreach ( $links as $ref => $found ) {
+			if ( $found )
+				continue;
+			$_ref = sanitize_title(trim(strip_tags($ref)));
+			if ( isset($cache[$_ref]) )
+				$links[$ref] = $cache[$_ref];
 		}
 
 		#dump($links, $cache);
