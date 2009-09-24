@@ -503,7 +503,7 @@ class wp_smart_links {
 	function wp($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
-		$use_cache &= !smart_links_debug;
+		$use_cache &= !smart_links_debug && $object_id;
 		
 		# build cache, if not available
 		if ( !$use_cache
@@ -554,7 +554,7 @@ class wp_smart_links {
 	function entries($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
-		$use_cache &= !smart_links_debug;
+		$use_cache &= !smart_links_debug && $object_id;
 		
 		# pages: check in section first
 		if ( is_page() ) {
@@ -677,7 +677,7 @@ class wp_smart_links {
 	function terms($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
-		$use_cache &= !smart_links_debug;
+		$use_cache &= !smart_links_debug && $object_id;
 		
 		# build cache, if not available
 		if ( !$use_cache
@@ -779,7 +779,7 @@ class wp_smart_links {
 	function links($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
-		$use_cache &= !smart_links_debug;
+		$use_cache &= !smart_links_debug && $object_id;
 		
 		# build cache, if not available
 		if ( !$use_cache
@@ -865,7 +865,7 @@ class wp_smart_links {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		$section_id = (int) $section_id;
 		
-		$use_cache &= !smart_links_debug;
+		$use_cache &= !smart_links_debug && $object_id;
 		
 		# build cache, if not available
 		if ( !$use_cache
