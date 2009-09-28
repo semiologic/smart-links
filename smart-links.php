@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2 RC3
+Version: 4.2 RC4
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -67,18 +67,20 @@ class smart_links {
 		$str = preg_replace_callback("/
 			(?<!`)							# not a backtick before
 			\[								# [
-				(							# text
+				((?:						# text
 					(?!(?:					# not an anchor ahead, nor a ]
 						<a\s
 						|
 						<\/a>
 						|
+						\[
+						|
 						\]
 					))
-					.+
-				)
+					.
+				)+?)
 				-(?:>|&gt;|&\#62;)			# ->
-				(							# optional ref
+				((?:						# optional ref
 					(?!(?:					# not an anchor ahead, nor a [ or a ->
 						<a\s
 						|
@@ -86,12 +88,14 @@ class smart_links {
 						|
 						\[
 						|
+						\]
+						|
 						-(?:>|&gt;|&\#62;)
 					))
-					.*
-				)
+					.
+				)*?)
 			\]								# ]
-			/iUx", array('smart_links', 'pre_process'), $str);
+			/ix", array('smart_links', 'pre_process'), $str);
 		
 		#dump(esc_html($str));
 		
@@ -102,44 +106,50 @@ class smart_links {
 		$str = preg_replace_callback("/
 			(?<!`)							# not a backtick before
 			\[								# [
-				(							# text
-					(?!(?:					# not an anchor ahead, nor a ]
+				((?:						# text
+					(?!(?:					# not an anchor ahead, nor brakets
 						<a\s
 						|
 						<\/a>
+						|
+						\[
 						|
 						\]
 					))
-					.+
-				)
+					.
+				)+?)
 				-(?:>|&gt;|&\#62;)			# ->
-				(							# ref
-					(?!(?:					# not an anchor ahead, nor a [ or a ->
+				((?:						# ref
+					(?!(?:					# not an anchor ahead, nor brakets
 						<a\s
 						|
 						<\/a>
 						|
 						\[
 						|
+						\]
+						|
 						-(?:>|&gt;|&\#62;)
 					))
-					.+
-				)
+					.
+				)+?)
 				@
-				(							# domain
-					(?!(?:					# not an anchor ahead, nor a [ or a ->
+				((?:						# domain
+					(?!(?:					# not an anchor ahead, nor brakets
 						<a\s
 						|
 						<\/a>
 						|
 						\[
 						|
+						\]
+						|
 						-(?:>|&gt;|&\#62;)
 					))
-					.+
-				)
+					.
+				)+?)
 			\]								# ]
-			/Ux", array('smart_links', 'process'), $str);
+			/ix", array('smart_links', 'process'), $str);
 		
 		#dump(esc_html($str));
 		
@@ -147,18 +157,20 @@ class smart_links {
 		$str = preg_replace("/
 			`								# a backtick
 			\[								# [
-				(							# text
+				((?:						# text
 					(?!(?:					# not an anchor ahead, nor a ]
 						<a\s
 						|
 						<\/a>
 						|
+						\[
+						|
 						\]
 					))
-					.+
-				)
+					.
+				)+?)
 				-(?:>|&gt;|&\#62;)			# ->
-				(							# optional ref
+				((?:						# optional ref
 					(?!(?:					# not an anchor ahead, nor a [ or a ->
 						<a\s
 						|
@@ -166,13 +178,15 @@ class smart_links {
 						|
 						\[
 						|
+						\]
+						|
 						-(?:>|&gt;|&\#62;)
 					))
-					.*
-				)
+					.
+				)*?)
 			\]								# ]
-			`??								# optional backtick (greedy)
-			/iUx", "[$1-&gt;$2]", $str);
+			`?								# optional backtick (greedy)
+			/ix", "[$1-&gt;$2]", $str);
 		
 		#dump(esc_html($str));
 		
@@ -519,7 +533,8 @@ class wp_smart_links {
 
 			$cache = $_cache;
 			
-		
+			#dump($cache);
+			
 			$cache = wp_smart_links::entries($cache, false);
 			$cache = wp_smart_links::links($cache, false);
 			$cache = wp_smart_links::terms($cache, false);
@@ -534,6 +549,10 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			if ( isset($cache[$ref]) ) {
+				$links[$ref] = $cache[$ref];
+				continue;
+			}
 			$_ref = sanitize_title(trim(strip_tags($ref)));
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
@@ -586,7 +605,7 @@ class wp_smart_links {
 				$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
 				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
 					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 			
 			#dump($ref, $ref_sql);
@@ -657,6 +676,10 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			if ( isset($cache[$ref]) ) {
+				$links[$ref] = $cache[$ref];
+				continue;
+			}
 			$_ref = sanitize_title(trim(strip_tags($ref)));
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
@@ -698,7 +721,7 @@ class wp_smart_links {
 
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
 				$seek_sql[$ref] = 'terms.name LIKE "' . $wpdb->escape($ref_sql) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -759,6 +782,10 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			if ( isset($cache[$ref]) ) {
+				$links[$ref] = $cache[$ref];
+				continue;
+			}
 			$_ref = sanitize_title(trim(strip_tags($ref)));
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
@@ -800,7 +827,7 @@ class wp_smart_links {
 
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
 				$seek_sql[$ref] = 'links.link_name LIKE "' . $wpdb->escape($ref_sql) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -843,6 +870,10 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			if ( isset($cache[$ref]) ) {
+				$links[$ref] = $cache[$ref];
+				continue;
+			}
 			$_ref = sanitize_title(trim(strip_tags($ref)));
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
@@ -892,7 +923,7 @@ class wp_smart_links {
 				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
 				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
 					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -954,6 +985,10 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			if ( isset($cache[$ref]) ) {
+				$links[$ref] = $cache[$ref];
+				continue;
+			}
 			$_ref = sanitize_title(trim(strip_tags($ref)));
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
@@ -1093,7 +1128,6 @@ function sem_smart_link_set_engine($domain, $callback) {
 
 add_filter('the_content', array('smart_links', 'replace'), 8);
 add_filter('the_excerpt', array('smart_links', 'replace'), 8);
-add_filter('widget_text', array('smart_links', 'replace'), 8);
 
 foreach ( array('default', 'wp', 'wordpress') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
