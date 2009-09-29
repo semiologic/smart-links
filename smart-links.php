@@ -518,19 +518,20 @@ class wp_smart_links {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug && $object_id;
+		$cache = get_post_meta($object_id, '_smart_links_cache_wp', true);
 		
 		# build cache, if not available
-		if ( !$use_cache
-			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_wp', true) ) === ''
-		) {
+		if ( !$use_cache || (string) $cache === '' ) {
 			$cache = array_keys($links);
-
+			
 			$_cache = array();
 
 			foreach ( $cache as $key ) {
+				if ( $links[$key] )
+					continue;
 				$_cache[$key] = false;
 			}
-
+			
 			$cache = $_cache;
 			
 			#dump($cache);
@@ -539,9 +540,8 @@ class wp_smart_links {
 			$cache = wp_smart_links::links($cache, false);
 			$cache = wp_smart_links::terms($cache, false);
 			
-			if ( $use_cache && $object_id ) {
+			if ( $use_cache && $object_id )
 				update_post_meta($object_id, '_smart_links_cache_wp', $cache);
-			}
 		}
 		
 		#dump($links, $cache);
@@ -549,11 +549,12 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			$ref = trim(strip_tags($ref));
 			if ( isset($cache[$ref]) ) {
 				$links[$ref] = $cache[$ref];
 				continue;
 			}
-			$_ref = sanitize_title(trim(strip_tags($ref)));
+			$_ref = sanitize_title($ref);
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
 		}
@@ -577,18 +578,27 @@ class wp_smart_links {
 		
 		# pages: check in section first
 		if ( is_page() ) {
+			if ( !get_transient('cached_section_ids') )
+				wp_smart_links::cache_section_ids();
 			global $wp_the_query;
 			$page = get_post($wp_the_query->get_queried_object_id());
-			while ( $page->post_parent ) {
-				$page = get_post($page->post_parent);
+			$section_id = get_post_meta($page->ID, '_section_id', true);
+			$links = wp_smart_links::section($section_id, $links);
+			$bail = true;
+			foreach ( $links as $ref => $found ) {
+				if ( !$found ) {
+					$bail = false;
+					break;
+				}
 			}
-			$links = wp_smart_links::section($page->ID, $links);
+			if ( $bail )
+				return $links;
 		}
 		
+		$cache = get_post_meta($object_id, '_smart_links_cache_entries', true);
+		
 		# build cache, if not available
-		if ( !$use_cache
-			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_entries', true) ) === ''
-		) {
+		if ( !$use_cache || (string) $cache === '' ) {
 			global $wpdb;
 			
 			$cache = array();
@@ -596,16 +606,26 @@ class wp_smart_links {
 			$seek_sql = array();
 			
 		    foreach ( $links as $ref => $found ) {
-				if ( $found ) {
+				if ( $found )
 					continue;
+				
+				if ( preg_match("/^[a-z0-9_-]+$/", $ref) ) {
+					if ( isset($seek_sql[$ref]) )
+						continue;
+					$seek_sql[$ref] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				} else {
+					$ref = trim(strip_tags($ref));
+					if ( isset($seek_sql[$ref]) )
+						continue;
+
+					$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
+					$ref_slug = sanitize_title($ref);
+					$seek_sql[$ref_slug] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref_slug] = 'WHEN ' . $seek_sql[$ref_slug] . ' THEN \'' . $wpdb->escape($ref_slug) . '\'';
+					$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '%"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 				}
-		
-				$ref = trim(strip_tags($ref));
-		
-				$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
-				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
-					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 			
 			#dump($ref, $ref_sql);
@@ -617,9 +637,8 @@ class wp_smart_links {
 				$filter_sql = "post_type = 'page' AND ID <> " . intval($object_id)
 					. " OR post_type = 'post' AND ID <> " . intval($object_id);
 		
-				if ( !is_page() ) {
+				if ( !is_page() )
 					$filter_sql .= " AND post_date > '" . get_the_time('Y-m-d') . "'";
-				}
 				
 				$sql = "
 					# wp_smart_links::entries()
@@ -644,18 +663,18 @@ class wp_smart_links {
 					ORDER BY
 						is_page DESC, post_title, post_date DESC
 					";
-
+				
 				#dump($sql);
 				#dump($wpdb->get_results($sql));
 				
-				if ( $res = (array) $wpdb->get_results($sql) ) {
+				if ( $res = $wpdb->get_results($sql) ) {
+					$res = (array) $res;
 					update_post_cache($res);
 			
 					#dump($res);
 					#dump($links);
 			
 					foreach ( $res as $row ) {
-						$ref = sanitize_title($row->ref);
 						if ( !$cache[$ref] ) {
 							$cache[$ref] = array(
 								'link' => apply_filters('the_permalink', get_permalink($row->ID)),
@@ -666,9 +685,8 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() ) {
+			if ( $use_cache && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_entries', $cache);
-			}
 		}
 		
 		#dump($cache);
@@ -676,11 +694,12 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			$ref = trim(strip_tags($ref));
 			if ( isset($cache[$ref]) ) {
 				$links[$ref] = $cache[$ref];
 				continue;
 			}
-			$_ref = sanitize_title(trim(strip_tags($ref)));
+			$_ref = sanitize_title($ref);
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
 		}
@@ -701,11 +720,10 @@ class wp_smart_links {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug && $object_id;
+		$cache = get_post_meta($object_id, '_smart_links_cache_terms', true);
 		
 		# build cache, if not available
-		if ( !$use_cache
-		 	|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_terms', true) ) === ''
-		) {
+		if ( !$use_cache || (string) $cache === '' ) {
 			global $wpdb;
 			
 			$cache = array();
@@ -713,15 +731,30 @@ class wp_smart_links {
 			$seek_sql = array();
 
 			foreach ( $links as $ref => $found ) {
-				if ( $found ) {
+				if ( $found )
 					continue;
-				}
-			
+				
 				$ref = trim(strip_tags($ref));
+				if ( isset($seek_sql[$ref]) )
+					continue;
+				
+				if ( preg_match("/^[a-z0-9_-]+$/", $ref) ) {
+					if ( isset($seek_sql[$ref]) )
+						continue;
+					$seek_sql[$ref] = 'terms.slug = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				} else {
+					$ref = trim(strip_tags($ref));
+					if ( isset($seek_sql[$ref]) )
+						continue;
 
-				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'terms.name LIKE "' . $wpdb->escape($ref_sql) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
+					$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
+					$ref_slug = sanitize_title($ref);
+					$seek_sql[$ref_slug] = 'terms.slug = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref_slug] = 'WHEN ' . $seek_sql[$ref_slug] . ' THEN \'' . $wpdb->escape($ref_slug) . '\'';
+					$seek_sql[$ref] = 'terms.name LIKE "' . $wpdb->escape($ref_sql) . '%"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				}
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -759,7 +792,8 @@ class wp_smart_links {
 
 				#dump($sql);
 			
-				if ( $res = (array) $wpdb->get_results($sql) ) {
+				if ( $res = $wpdb->get_results($sql) ) {
+					$res = (array) $res;
 					#dump($res);
 					
 					foreach ( $res as $row ) {
@@ -774,19 +808,19 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() ) {
+			if ( $use_cache && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_terms', $cache);
-			}
 		}
 
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			$ref = trim(strip_tags($ref));
 			if ( isset($cache[$ref]) ) {
 				$links[$ref] = $cache[$ref];
 				continue;
 			}
-			$_ref = sanitize_title(trim(strip_tags($ref)));
+			$_ref = sanitize_title($ref);
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
 		}
@@ -807,11 +841,10 @@ class wp_smart_links {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		
 		$use_cache &= !smart_links_debug && $object_id;
+		$cache = get_post_meta($object_id, '_smart_links_cache_links', true);
 		
 		# build cache, if not available
-		if ( !$use_cache
-		 	|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_links', true) ) === ''
-		) {
+		if ( !$use_cache || (string) $cache === '' ) {
 			global $wpdb;
 
 			$cache = array();
@@ -819,15 +852,16 @@ class wp_smart_links {
 			$seek_sql = array();
 
 			foreach ( $links as $ref => $found ) {
-				if ( $found ) {
+				if ( $found )
 					continue;
-				}
 			
 				$ref = trim(strip_tags($ref));
-
-				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'links.link_name LIKE "' . $wpdb->escape($ref_sql) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
+				if ( isset($seek_sql[$ref]) )
+					continue;
+				
+				$ref_sql = preg_replace("/[^a-z0-9]/i", "%", $ref);
+				$seek_sql[$ref] = 'links.link_name LIKE "' . $wpdb->escape($ref_sql) . '%"';
+				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -847,7 +881,8 @@ class wp_smart_links {
 
 				#dump($sql);
 				
-				if ( $res = (array) $wpdb->get_results($sql) ) {
+				if ( $res = $wpdb->get_results($sql) ) {
+					$res = (array) $res;
 					#dump($res);
 				
 					foreach ( $res as $row ) {
@@ -862,19 +897,19 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() ) {
+			if ( $use_cache && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_links', $cache);
-			}
 		}
 		
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			$ref = trim(strip_tags($ref));
 			if ( isset($cache[$ref]) ) {
 				$links[$ref] = $cache[$ref];
 				continue;
 			}
-			$_ref = sanitize_title(trim(strip_tags($ref)));
+			$_ref = sanitize_title($ref);
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
 		}
@@ -897,11 +932,10 @@ class wp_smart_links {
 		$section_id = (int) $section_id;
 		
 		$use_cache &= !smart_links_debug && $object_id;
+		$cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true);
 		
 		# build cache, if not available
-		if ( !$use_cache
-			|| (string) ( $cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true) ) === ''
-		) {
+		if ( !$use_cache || (string) $cache === '' ) {
 			global $wpdb;
 			global $page_filters;
 			
@@ -914,16 +948,26 @@ class wp_smart_links {
 			$seek_sql = array();
 
 		    foreach ( $links as $ref => $found ) {
-				if ( $found ) {
+				if ( $found )
 					continue;
+				
+				if ( preg_match("/^[a-z0-9_-]+$/", $ref) ) {
+					if ( isset($seek_sql[$ref]) )
+						continue;
+					$seek_sql[$ref] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
+				} else {
+					$ref = trim(strip_tags($ref));
+					if ( isset($seek_sql[$ref]) )
+						continue;
+
+					$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
+					$ref_slug = sanitize_title($ref);
+					$seek_sql[$ref_slug] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+					$match_sql[$ref_slug] = 'WHEN ' . $seek_sql[$ref_slug] . ' THEN \'' . $wpdb->escape($ref_slug) . '\'';
+					$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '%"';
+					$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 				}
-			
-				$ref = trim(strip_tags($ref));
-			
-				$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '"'
-					. ' OR posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
-				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape(sanitize_title($ref)) . '\'';
 			}
 
 			if ( !empty($seek_sql) ) {
@@ -958,7 +1002,8 @@ class wp_smart_links {
 
 				#dump($sql);
 				
-				if ( $res = (array) $wpdb->get_results($sql) ) {
+				if ( $res = $wpdb->get_results($sql) ) {
+					$res = (array) $res;
 					update_post_cache($res);
 					
 					#dump($res);
@@ -975,9 +1020,8 @@ class wp_smart_links {
 				}
 			}
 			
-			if ( $use_cache && $object_id && !is_admin() ) {
+			if ( $use_cache && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache);
-			}
 		}
 		
 		#dump($links, $cache);
@@ -985,11 +1029,12 @@ class wp_smart_links {
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
 				continue;
+			$ref = trim(strip_tags($ref));
 			if ( isset($cache[$ref]) ) {
 				$links[$ref] = $cache[$ref];
 				continue;
 			}
-			$_ref = sanitize_title(trim(strip_tags($ref)));
+			$_ref = sanitize_title($ref);
 			if ( isset($cache[$_ref]) )
 				$links[$ref] = $cache[$_ref];
 		}
@@ -1012,9 +1057,8 @@ class wp_smart_links {
 		
 		$ref = trim(strip_tags($domain));
 		
-		if ( !$ref ) {
+		if ( !$ref )
 			return create_function('$in', 'return $in;');
-		}
 		
 		$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
 		$seek_sql = 'posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
@@ -1036,11 +1080,10 @@ class wp_smart_links {
 
 		#dump($sql);
 		
-		if ( $section_id = $wpdb->get_var($sql) ) {
+		if ( $section_id = $wpdb->get_var($sql) )
 			return create_function('$in', 'return wp_smart_links::section(' . $section_id . ', $in);');
-		} else {
+		else
 			return create_function('$in', 'return $in;');
-		}
 	} # factory()
 	
 	
