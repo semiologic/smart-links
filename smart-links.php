@@ -540,7 +540,7 @@ class wp_smart_links {
 			$cache = wp_smart_links::links($cache, false);
 			$cache = wp_smart_links::terms($cache, false);
 			
-			if ( $use_cache && $object_id )
+			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_wp', $cache);
 		}
 		
@@ -685,7 +685,7 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
+			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_entries', $cache);
 		}
 		
@@ -808,7 +808,7 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
+			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_terms', $cache);
 		}
 
@@ -897,7 +897,7 @@ class wp_smart_links {
 				}
 			}
 
-			if ( $use_cache && $object_id && !is_admin() )
+			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_links', $cache);
 		}
 		
@@ -1020,7 +1020,7 @@ class wp_smart_links {
 				}
 			}
 			
-			if ( $use_cache && $object_id && !is_admin() )
+			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
 				update_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache);
 		}
 		
