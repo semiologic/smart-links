@@ -1193,12 +1193,17 @@ class wp_smart_links {
 	 **/
 
 	function replace($str) {
-		if ( !in_the_loop() )
+		if ( !in_the_loop() || !trim($str) )
 			return $str;
 		
 		smart_links::init();
+		$has_links = wp_smart_links::cache();
 		
-		if ( !wp_smart_links::cache() )
+		if ( !$has_links ) {
+			$has_links = preg_match("/\[.+?-(?:>|&gt;|&\#62;).*?\]/ix", $str);
+		}
+		
+		if ( !$has_links )
 			return $str;
 		
 		$str = smart_links::pre_process($str);
@@ -1225,9 +1230,9 @@ class wp_smart_links {
 			
 			smart_links::init();
 			
-			$str = $post->post_content . "\n\n" . $post->post_excerpt;
+			$str = trim($post->post_content . "\n\n" . $post->post_excerpt);
 			
-			if ( strpos($str, '[') !== false && strpos($str, ']') !== false ) {
+			if ( $str && preg_match("/\[.+?-(?:>|&gt;|&\#62;).*?\]/ix", $str) ) {
 				smart_links::pre_process($str);
 				smart_links::fetch();
 			}
