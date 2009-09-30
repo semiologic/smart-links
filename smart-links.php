@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2 RC5
+Version: 4.2 RC6
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -40,10 +40,11 @@ class smart_links {
 	 * replace()
 	 *
 	 * @param string $str
+	 * @param string $context
 	 * @return string $str
 	 **/
 	
-	function replace($str) {
+	function replace($str, $context = '') {
 		# initialize
 		global $smart_links_cache;
 		global $smart_links_aliases;
@@ -100,7 +101,7 @@ class smart_links {
 		#dump(esc_html($str));
 		
 		# fetch links
-		smart_links::fetch();
+		smart_links::fetch($context);
 		
 		# process smart links
 		$str = preg_replace_callback("/
@@ -330,10 +331,11 @@ class smart_links {
 	/**
 	 * fetch()
 	 *
+	 * @param string $context
 	 * @return void
 	 **/
 
-	function fetch() {
+	function fetch($context = '') {
 		global $smart_links_cache;
 		global $smart_links_engines;
 		global $smart_links_engine_factory;
@@ -343,7 +345,7 @@ class smart_links {
 			if ( !isset($smart_links_engines[$domain])
 				&& isset($smart_links_engine_factory)
 			) {
-				$smart_links_engines[$domain] = call_user_func($smart_links_engine_factory, $domain);
+				$smart_links_engines[$domain] = call_user_func($smart_links_engine_factory, $domain, $context);
 			}
 			
 			# ksort links and reverse it, so as to scan longer refs first
@@ -351,7 +353,7 @@ class smart_links {
 			$links = array_reverse($links, true);
 			
 			if ( isset($smart_links_engines[$domain]) ) {
-				$smart_links_cache[$domain] = call_user_func($smart_links_engines[$domain], $links);
+				$smart_links_cache[$domain] = call_user_func($smart_links_engines[$domain], $links, $context, true);
 			}
 		}
 		
@@ -427,7 +429,7 @@ class smart_links_search {
 		foreach ( array_keys($links) as $ref ) {
 			if ( !$links[$ref] ) {
 				$links[$ref] = array(
-					'link' => ( $how . rawurlencode($ref) ),
+					'link' => ( $how . urlencode($ref) ),
 					'title' => "$ref @ $where"
 					);
 			}
@@ -510,15 +512,16 @@ class wp_smart_links {
 	 * wp()
 	 *
 	 * @param array $links
+	 * @param string $context
 	 * @param bool $use_cache
 	 * @return array $links
 	 **/
 	
-	function wp($links, $use_cache = true) {
+	function wp($links, $context = '', $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
-		
+		#dump('Context: ' . $context);
 		$use_cache &= !smart_links_debug && $object_id;
-		$cache = get_post_meta($object_id, '_smart_links_cache_wp', true);
+		$cache = !$use_cache ? false : get_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_wp', true);
 		
 		# build cache, if not available
 		if ( !$use_cache || (string) $cache === '' ) {
@@ -536,12 +539,12 @@ class wp_smart_links {
 			
 			#dump($cache);
 			
-			$cache = wp_smart_links::entries($cache, false);
-			$cache = wp_smart_links::links($cache, false);
-			$cache = wp_smart_links::terms($cache, false);
+			$cache = wp_smart_links::entries($cache, $context, false);
+			$cache = wp_smart_links::links($cache, $context, false);
+			$cache = wp_smart_links::terms($cache, $context, false);
 			
 			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
-				update_post_meta($object_id, '_smart_links_cache_wp', $cache);
+				update_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_wp', $cache);
 		}
 		
 		#dump($links, $cache);
@@ -567,13 +570,14 @@ class wp_smart_links {
 	 * entries()
 	 *
 	 * @param array $links
+	 * @param string $context
 	 * @param bool $use_cache
 	 * @return array $links
 	 **/
 	
-	function entries($links, $use_cache = true) {
+	function entries($links, $context = '', $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
-		
+		#dump('Context: ' . $context);
 		$use_cache &= !smart_links_debug && $object_id;
 		
 		# pages: check in section first
@@ -595,7 +599,7 @@ class wp_smart_links {
 				return $links;
 		}
 		
-		$cache = get_post_meta($object_id, '_smart_links_cache_entries', true);
+		$cache = !$use_cache ? false : get_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_entries', true);
 		
 		# build cache, if not available
 		if ( !$use_cache || (string) $cache === '' ) {
@@ -686,7 +690,7 @@ class wp_smart_links {
 			}
 
 			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
-				update_post_meta($object_id, '_smart_links_cache_entries', $cache);
+				update_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_entries', $cache);
 		}
 		
 		#dump($cache);
@@ -712,15 +716,16 @@ class wp_smart_links {
 	 * terms()
 	 *
 	 * @param array $links
+	 * @param string $context
 	 * @param bool $use_cache
 	 * @return array $links
 	 **/
 	
-	function terms($links, $use_cache = true) {
+	function terms($links, $context = '', $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
-		
+		#dump('Context: ' . $context);
 		$use_cache &= !smart_links_debug && $object_id;
-		$cache = get_post_meta($object_id, '_smart_links_cache_terms', true);
+		$cache = !$use_cache ? false : get_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_terms', true);
 		
 		# build cache, if not available
 		if ( !$use_cache || (string) $cache === '' ) {
@@ -809,7 +814,7 @@ class wp_smart_links {
 			}
 
 			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
-				update_post_meta($object_id, '_smart_links_cache_terms', $cache);
+				update_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_terms', $cache);
 		}
 
 		foreach ( $links as $ref => $found ) {
@@ -839,9 +844,9 @@ class wp_smart_links {
 	
 	function links($links, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
-		
+		#dump('Context: ' . $context);
 		$use_cache &= !smart_links_debug && $object_id;
-		$cache = get_post_meta($object_id, '_smart_links_cache_links', true);
+		$cache = !$use_cache ? false : get_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_links', true);
 		
 		# build cache, if not available
 		if ( !$use_cache || (string) $cache === '' ) {
@@ -898,7 +903,7 @@ class wp_smart_links {
 			}
 
 			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
-				update_post_meta($object_id, '_smart_links_cache_links', $cache);
+				update_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_links', $cache);
 		}
 		
 		foreach ( $links as $ref => $found ) {
@@ -923,16 +928,17 @@ class wp_smart_links {
 	 *
 	 * @param int $section_id
 	 * @param array $links
+	 * @param string $context
 	 * @param bool $use_cache
 	 * @return array $links
 	 **/
 	
-	function section($section_id, $links, $use_cache = true) {
+	function section($section_id, $links, $context, $use_cache = true) {
 		$object_id = in_the_loop() ? get_the_ID() : 0;
 		$section_id = (int) $section_id;
-		
+		#dump('Context: ' . $context);
 		$use_cache &= !smart_links_debug && $object_id;
-		$cache = get_post_meta($object_id, '_smart_links_cache_section_' . $section_id, true);
+		$cache = !$use_cache ? false : get_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_section_' . $section_id, true);
 		
 		# build cache, if not available
 		if ( !$use_cache || (string) $cache === '' ) {
@@ -1021,7 +1027,7 @@ class wp_smart_links {
 			}
 			
 			if ( ( $use_cache || smart_links_debug ) && $object_id && !is_admin() )
-				update_post_meta($object_id, '_smart_links_cache_section_' . $section_id, $cache);
+				update_post_meta($object_id, '_smart_links_cache' . ( $context ? ( '_' . $context ) : '' ) . '_section_' . $section_id, $cache);
 		}
 		
 		#dump($links, $cache);
@@ -1049,10 +1055,11 @@ class wp_smart_links {
 	 * factory()
 	 *
 	 * @param string $domain
+	 * @param string $context
 	 * @return callback $callback
 	 **/
 	
-	function factory($domain) {
+	function factory($domain, $context = '') {
 		global $wpdb;
 		
 		$ref = trim(strip_tags($domain));
@@ -1081,7 +1088,7 @@ class wp_smart_links {
 		#dump($sql);
 		
 		if ( $section_id = $wpdb->get_var($sql) )
-			return create_function('$in', 'return wp_smart_links::section(' . $section_id . ', $in);');
+			return create_function('$in, $context', 'return wp_smart_links::section(' . $section_id . ', $in, $context);');
 		else
 			return create_function('$in', 'return $in;');
 	} # factory()
@@ -1159,6 +1166,71 @@ class wp_smart_links {
 		
 		return $in;
 	} # flush_cache()
+	
+	
+	/**
+	 * disable()
+	 *
+	 * @param mixed $in
+	 * @return mixed $in
+	 **/
+
+	function disable($in) {
+		if ( trim($in) ) {
+			add_filter('the_excerpt', array('wp_smart_links', 'the_excerpt'), 8);
+		} else {
+			#dump('disable');
+			remove_filter('the_content', array('wp_smart_links', 'the_content'), 8);
+			remove_filter('the_excerpt', array('wp_smart_links', 'the_excerpt'), 8);
+			add_filter('the_content', array('wp_smart_links', 'the_excerpt'), 8);
+		}
+		
+		return $in;
+	} # disable()
+	
+	
+	/**
+	 * enable()
+	 *
+	 * @param mixed $in
+	 * @return mixed $in
+	 **/
+
+	function enable($in) {
+		if ( has_filter('the_content', array('wp_smart_links', 'the_excerpt')) ) {
+			#dump('enable');
+			add_filter('the_content', array('wp_smart_links', 'the_content'), 8);
+			remove_filter('the_content', array('wp_smart_links', 'the_excerpt'), 8);
+		}
+		
+		return $in;
+	} # enable()
+	
+	
+	/**
+	 * the_content()
+	 *
+	 * @param string $text
+	 * @return string $text
+	 **/
+
+	function the_content($text) {
+		#dump('content');
+		return smart_links::replace($text);
+	} # the_content()
+	
+	
+	/**
+	 * the_excerpt()
+	 *
+	 * @param string $text
+	 * @return string $text
+	 **/
+
+	function the_excerpt($text) {
+		#dump('excerpt');
+		return smart_links::replace($text, 'excerpt');
+	} # the_excerpt()
 } # wp_smart_links
 
 
@@ -1169,8 +1241,9 @@ function sem_smart_link_set_engine($domain, $callback) {
 } # sem_smart_link_set_engine()
 
 
-add_filter('the_content', array('smart_links', 'replace'), 8);
-add_filter('the_excerpt', array('smart_links', 'replace'), 8);
+add_filter('the_content', array('wp_smart_links', 'the_content'), 8);
+add_filter('get_the_excerpt', array('wp_smart_links', 'disable'), -20);
+add_filter('get_the_excerpt', array('wp_smart_links', 'enable'), 20);
 
 foreach ( array('default', 'wp', 'wordpress') as $domain ) {
 	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
