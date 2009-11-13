@@ -3,7 +3,7 @@ Contributors: Denis-de-Bernardy
 Donate link: http://www.semiologic.com/partners/
 Tags: semiologic
 Requires at least: 2.8
-Tested up to: 2.8.4
+Tested up to: 2.8.6
 Stable tag: trunk
 
 Lets you (pre-)insert links using natural language rather than urls.
