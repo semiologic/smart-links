@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2
+Version: 4.2.1
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -645,7 +645,7 @@ class wp_smart_links {
 			if ( preg_match("/^[a-z0-9_-]+$/", $ref) ) {
 				if ( isset($seek_sql[$ref]) )
 					continue;
-				$seek_sql[$ref] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+				$seek_sql[$ref] = 'posts.post_name LIKE "' . $wpdb->escape($ref) . '%"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			} else {
 				$ref = trim(strip_tags($ref));
@@ -654,7 +654,7 @@ class wp_smart_links {
 
 				$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
 				$ref_slug = sanitize_title($ref);
-				$seek_sql[$ref_slug] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+				$seek_sql[$ref_slug] = 'posts.post_name LIKE "' . $wpdb->escape($ref) . '%"';
 				$match_sql[$ref_slug] = 'WHEN ' . $seek_sql[$ref_slug] . ' THEN \'' . $wpdb->escape($ref_slug) . '\'';
 				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '%"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
@@ -708,6 +708,7 @@ class wp_smart_links {
 				#dump($links);
 		
 				foreach ( $res as $row ) {
+					$ref = sanitize_title($row->ref);
 					if ( !$cache[$ref] ) {
 						$cache[$ref] = array(
 							'link' => apply_filters('the_permalink', get_permalink($row->ID)),
@@ -721,7 +722,7 @@ class wp_smart_links {
 		if ( !$cache )
 			return $links;
 		
-		#dump($cache);
+		#dump($cache, $links);
 		
 		foreach ( $links as $ref => $found ) {
 			if ( $found )
@@ -976,7 +977,7 @@ class wp_smart_links {
 			if ( preg_match("/^[a-z0-9_-]+$/", $ref) ) {
 				if ( isset($seek_sql[$ref]) )
 					continue;
-				$seek_sql[$ref] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+				$seek_sql[$ref] = 'posts.post_name LIKE "' . $wpdb->escape($ref) . '%"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
 			} else {
 				$ref = trim(strip_tags($ref));
@@ -985,7 +986,7 @@ class wp_smart_links {
 
 				$ref_sql = preg_replace("/[^a-z0-9]+/i", "%", $ref);
 				$ref_slug = sanitize_title($ref);
-				$seek_sql[$ref_slug] = 'posts.post_name = "' . $wpdb->escape($ref) . '"';
+				$seek_sql[$ref_slug] = 'posts.post_name LIKE "' . $wpdb->escape($ref) . '%"';
 				$match_sql[$ref_slug] = 'WHEN ' . $seek_sql[$ref_slug] . ' THEN \'' . $wpdb->escape($ref_slug) . '\'';
 				$seek_sql[$ref] = 'posts.post_title LIKE "' . $wpdb->escape($ref_sql) . '%"';
 				$match_sql[$ref] = 'WHEN ' . $seek_sql[$ref] . ' THEN \'' . $wpdb->escape($ref) . '\'';
@@ -1082,7 +1083,7 @@ class wp_smart_links {
 			return create_function('$in', 'return $in;');
 		
 		$ref_sql = preg_replace("/[^a-z0-9]/i", "_", $ref);
-		$seek_sql = 'posts.post_name = "' . $wpdb->escape(sanitize_title($ref)) . '"';
+		$seek_sql = 'posts.post_name LIKE "' . $wpdb->escape(sanitize_title($ref)) . '%"';
 
 		$filter_sql = "post_type = 'page' AND post_parent = 0";
 		
