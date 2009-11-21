@@ -28,11 +28,12 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
-= 4.0.1 =
+= 4.2.1 =
 
 - Fix erratic behavior when scanning for domain-less pages
+- WP 2.9 compat
 
-= 4.0 =
+= 4.2 =
 
 - Complete rewrite
 - Localization
