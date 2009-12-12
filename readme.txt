@@ -28,6 +28,10 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
+= 4.2.2 =
+
+- Cache improvements
+
 = 4.2.1 =
 
 - Fix erratic behavior when scanning for domain-less pages

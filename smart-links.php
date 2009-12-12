@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2.1
+Version: 4.2.2 alpha
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -1117,12 +1117,48 @@ class wp_smart_links {
 	 **/
 
 	function save_post($post_id) {
+		if ( !get_transient('cached_section_ids') )
+			return;
+		
+		$post_id = (int) $post_id;
 		$post = get_post($post_id);
 		
 		if ( $post->post_type != 'page' )
 			return;
 		
-		delete_transient('cached_section_ids');
+		$section_id = get_post_meta($post_id, '_section_id', true);
+		$refresh = false;
+		if ( !$section_id ) {
+			$refresh = true;
+		} else {
+			_get_post_ancestors($post);
+			if ( !$post->ancestors ) {
+				if ( $section_id != $post_id )
+					$refresh = true;
+			} elseif ( $section_id != $post->ancestors[0] ) {
+				$refresh = true;
+			}
+		}
+		
+		if ( $refresh ) {
+			global $wpdb;
+			if ( !$post->post_parent )
+				$new_section_id = $post_id;
+			else
+				$new_section_id = get_post_meta($post->post_parent, '_section_id', true);
+			
+			if ( $new_section_id ) {
+				update_post_meta($post_id, '_section_id', $new_section_id);
+				wp_cache_delete($post_id, 'posts');
+				
+				# mass-process children
+				if ( $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_parent = $post_id AND post_type = 'page' LIMIT 1") )
+					delete_transient('cached_section_ids');
+			} else {
+				# fix corrupt data
+				delete_transient('cached_section_ids');
+			}
+		}
 	} # save_post()
 	
 	
@@ -1152,7 +1188,7 @@ class wp_smart_links {
 		
 		foreach ( $pages as $page ) {
 			$parent = $page;
-			while ( $parent->post_parent )
+			while ( $parent->post_parent && $parent->ID != $parent->post_parent )
 				$parent = get_post($parent->post_parent);
 			
 			if ( "$parent->ID" !== get_post_meta($page->ID, '_section_id', true) )
@@ -1161,30 +1197,6 @@ class wp_smart_links {
 		
 		set_transient('cached_section_ids', 1);
 	} # cache_section_ids()
-	
-	
-	/**
-	 * flush_cache()
-	 *
-	 * @param mixed $in
-	 * @return mixed $in
-	 **/
-	
-	function flush_cache($in = null) {
-		if ( delete_post_meta_by_key('_smart_links_cache') )
-			return $in;
-		
-		global $wpdb;
-		
-		$post_ids = $wpdb->get_col("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
-		if ( $post_ids ) {
-			$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
-			foreach ( $post_ids as $post_id )
-				wp_cache_delete($post_id, 'post_meta');
-		}
-		
-		return $in;
-	} # flush_cache()
 	
 	
 	/**
@@ -1249,6 +1261,129 @@ class wp_smart_links {
 		
 		return false;
 	} # cache()
+	
+	
+	/**
+	 * pre_flush_post()
+	 *
+	 * @param int $post_id
+	 * @return void
+	 **/
+
+	function pre_flush_post($post_id) {
+		$post_id = (int) $post_id;
+		if ( !$post_id )
+			return;
+		
+		$post = get_post($post_id);
+		if ( !$post || wp_is_post_revision($post_id) )
+			return;
+		
+		if ( wp_cache_get($post_id, 'pre_flush_post') !== false )
+			return;
+		
+		$old = array(
+			'post_title' => $post->post_title,
+			'post_name' => $post->post_name,
+			'post_date' => $post->post_date,
+			'post_excerpt' => $post->post_excerpt,
+			'post_content' => $post->post_content,
+			'permalink' => get_permalink($post_id),
+			);
+		
+		foreach ( array(
+			'widgets_label', 'widgets_desc',
+			'widgets_exclude', 'widgets_exception',
+			) as $key ) {
+			$old[$key] = get_post_meta($post_id, "_$key", true);
+		}
+		
+		foreach ( array('category', 'post_tag') as $taxonomy ) {
+			$terms = wp_get_object_terms($post_id, $taxonomy);
+			$old[$taxonomy] = array();
+			foreach ( $terms as &$term )
+				$old[$taxonomy][] = $term->term_id;
+		}
+		
+		wp_cache_add($post_id, $old, 'pre_flush_post');
+	} # pre_flush_post()
+	
+	
+	/**
+	 * flush_post()
+	 *
+	 * @param int $post_id
+	 * @return void
+	 **/
+
+	function flush_post($post_id) {
+		$post_id = (int) $post_id;
+		if ( !$post_id )
+			return;
+		
+		$post = get_post($post_id);
+		if ( !$post || wp_is_post_revision($post_id) )
+			return;
+		
+		$old = wp_cache_get($post_id, 'pre_flush_post');
+		if ( $old === false )
+			return wp_smart_links::flush_cache();
+		
+		extract($old, EXTR_SKIP);
+		foreach ( array_keys($old) as $key ) {
+			switch ( $key ) {
+			case 'widgets_label':
+			case 'widgets_exclude':
+			case 'widgets_exception':
+				if ( $$key != get_post_meta($post_id, "_$key", true) )
+					return wp_smart_links::flush_cache();
+				break;
+			
+			case 'permalink':
+				if ( $$key != get_permalink($post_id) )
+					return wp_smart_links::flush_cache();
+				break;
+			
+			case 'post_title':
+			case 'post_name':
+			case 'post_excerpt':
+			case 'post_content':
+				if ( $$key != $post->$key )
+					return wp_smart_links::flush_cache();
+			}
+		}
+		
+		# prevent mass-flushing when rewrite rules have not changed
+		if ( $post->post_type == 'page' )
+			remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
+	} # flush_post()
+	
+	
+	/**
+	 * flush_cache()
+	 *
+	 * @param mixed $in
+	 * @return mixed $in
+	 **/
+	
+	function flush_cache($in = null) {
+		static $done = false;
+		if ( $done )
+			return $in;
+		
+		$done = true;
+		
+		global $wpdb;
+		
+		$post_ids = $wpdb->get_col("SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
+		if ( $post_ids ) {
+			$wpdb->query("DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_smart\_links\_cache%'");
+			foreach ( $post_ids as $post_id )
+				wp_cache_delete($post_id, 'post_meta');
+		}
+		
+		return $in;
+	} # flush_cache()
 } # wp_smart_links
 
 
@@ -1286,25 +1421,28 @@ foreach ( array('links', 'blogroll') as $domain ) {
 smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
 
 foreach ( array(
-	'save_post',
-	'delete_post',
 	'add_link',
 	'edit_link',
 	'delete_link',
 	'generate_rewrite_rules',
-	'switch_theme',
 	'update_option_active_plugins',
 	'update_option_show_on_front',
 	'update_option_page_on_front',
 	'update_option_page_for_posts',
-	'update_option_sidebars_widgets',
-	'update_option_sem5_options',
-	'update_option_sem6_options',
 		
 	'flush_cache',
 	'after_db_upgrade',
 	) as $hook ) {
 	add_action($hook, array('wp_smart_links', 'flush_cache'));
+}
+
+add_action('pre_post_update', array('wp_smart_links', 'pre_flush_post'));
+
+foreach ( array(
+	'save_post',
+	'delete_post',
+	) as $hook ) {
+	add_action($hook, array('wp_smart_links', 'flush_post'), 1); // before _save_post_hook()
 }
 
 add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
@@ -1314,4 +1452,6 @@ register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
 register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
 
 add_action('save_post', array('wp_smart_links', 'save_post'));
+
+wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
 ?>
