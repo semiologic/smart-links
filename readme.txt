@@ -31,6 +31,7 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 = 4.2.2 =
 
 - Cache improvements
+- Apply filters to permalinks
 
 = 4.2.1 =
 

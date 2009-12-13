@@ -1287,9 +1287,10 @@ class wp_smart_links {
 			'post_name' => $post->post_name,
 			'post_date' => $post->post_date,
 			'post_author' => $post->post_author,
+			'post_status' => $post->post_status,
 			'post_excerpt' => $post->post_excerpt,
 			'post_content' => $post->post_content,
-			'permalink' => get_permalink($post_id),
+			'permalink' => apply_filters('the_permalink', get_permalink($post_id)),
 			);
 		
 		foreach ( array(
@@ -1341,12 +1342,13 @@ class wp_smart_links {
 				break;
 			
 			case 'permalink':
-				if ( $$key != get_permalink($post_id) )
+				if ( $$key != apply_filters('the_permalink', get_permalink($post_id)) )
 					return wp_smart_links::flush_cache();
 				break;
 			
 			case 'post_title':
 			case 'post_name':
+			case 'post_status':
 			case 'post_excerpt':
 			case 'post_content':
 				if ( $$key != $post->$key )
