@@ -1327,7 +1327,15 @@ class wp_smart_links {
 		if ( !$post || wp_is_post_revision($post_id) )
 			return;
 		
+		# prevent mass-flushing when rewrite rules have not changed
+		if ( $post->post_type == 'page' )
+			remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
+		
 		$old = wp_cache_get($post_id, 'pre_flush_post');
+		
+		if ( $post->post_status != 'publish' && ( !$old || $old['post_status'] != 'publish' ) )
+			return;
+		
 		if ( $old === false )
 			return wp_smart_links::flush_cache();
 		
@@ -1355,10 +1363,6 @@ class wp_smart_links {
 					return wp_smart_links::flush_cache();
 			}
 		}
-		
-		# prevent mass-flushing when rewrite rules have not changed
-		if ( $post->post_type == 'page' )
-			remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
 	} # flush_post()
 	
 	
