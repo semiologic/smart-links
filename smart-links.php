@@ -1328,12 +1328,12 @@ class wp_smart_links {
 		if ( !$post_id )
 			return;
 		
+		# prevent mass-flushing when rewrite rules have not changed
+		remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
+		
 		$post = get_post($post_id);
 		if ( !$post || wp_is_post_revision($post_id) )
 			return;
-		
-		# prevent mass-flushing when rewrite rules have not changed
-		remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
 		
 		$old = wp_cache_get($post_id, 'pre_flush_post');
 		
