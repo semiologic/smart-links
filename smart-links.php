@@ -1435,11 +1435,11 @@ foreach ( array(
 	'add_link',
 	'edit_link',
 	'delete_link',
-	'generate_rewrite_rules',
 	'update_option_active_plugins',
 	'update_option_show_on_front',
 	'update_option_page_on_front',
 	'update_option_page_for_posts',
+	'generate_rewrite_rules',
 		
 	'flush_cache',
 	'after_db_upgrade',
