@@ -1279,9 +1279,10 @@ class wp_smart_links {
 		if ( !$post || wp_is_post_revision($post_id) )
 			return;
 		
-		if ( wp_cache_get($post_id, 'pre_flush_post') === false )
+		$old = wp_cache_get($post_id, 'pre_flush_post');
+		if ( $old === false )
 			$old = array();
-		
+		dump($old);
 		$update = false;
 		foreach ( array(
 			'post_title',
@@ -1289,8 +1290,8 @@ class wp_smart_links {
 			'post_status',
 			'post_excerpt',
 			'post_content',
-			) as $field => $value ) {
-			if ( !isset($o[$field]) ) {
+			) as $field ) {
+			if ( !isset($old[$field]) ) {
 				$old[$field] = $post->$field;
 				$update = true;
 			}
@@ -1310,6 +1311,7 @@ class wp_smart_links {
 				$update = true;
 			}
 		}
+		
 		
 		if ( $update )
 			wp_cache_set($post_id, $old, 'pre_flush_post');
