@@ -1282,7 +1282,7 @@ class wp_smart_links {
 		$old = wp_cache_get($post_id, 'pre_flush_post');
 		if ( $old === false )
 			$old = array();
-		dump($old);
+		
 		$update = false;
 		foreach ( array(
 			'post_title',
