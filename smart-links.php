@@ -1285,6 +1285,7 @@ class wp_smart_links {
 		$update = false;
 		foreach ( array(
 			'post_title',
+			'post_name',
 			'post_status',
 			'post_excerpt',
 			'post_content',
