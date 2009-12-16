@@ -1330,7 +1330,7 @@ class wp_smart_links {
 		if ( !$post_id )
 			return;
 		
-		# prevent mass-flushing when rewrite rules have not changed
+		# prevent mass-flushing when the permalink structure hasn't changed
 		remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
 		
 		$post = get_post($post_id);
