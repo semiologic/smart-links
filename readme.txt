@@ -32,6 +32,7 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 - Cache improvements
 - Apply filters to permalinks
+- Give more prominence to a page's immediate children
 
 = 4.2.1 =
 

@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy
-Version: 4.2.2 RC
+Version: 4.2.2 RC2
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -706,13 +706,26 @@ class wp_smart_links {
 		
 				#dump($res);
 				#dump($links);
-		
+				
+				# prefer direct page children
+				foreach ( $res as $row ) {
+					if ( $row->post_type == 'page' && $row->post_parent == $object_id ) {
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
+								'link' => apply_filters('the_permalink', get_permalink($row->ID)),
+								'title' => $row->post_title,
+								);
+						}
+					}
+				}
+				
 				foreach ( $res as $row ) {
 					$ref = sanitize_title($row->ref);
 					if ( !$cache[$ref] ) {
 						$cache[$ref] = array(
 							'link' => apply_filters('the_permalink', get_permalink($row->ID)),
-							'title' => $row->post_title
+							'title' => $row->post_title,
 							);
 					}
 				}
@@ -831,7 +844,7 @@ class wp_smart_links {
 					if ( !$cache[$ref] ) {
 						$cache[$ref] = array(
 							'link' => $row->is_cat ? get_category_link($row->id) : get_tag_link($row->id),
-							'title' => $row->title
+							'title' => $row->title,
 							);
 					}
 				}
@@ -916,7 +929,7 @@ class wp_smart_links {
 					if ( !$cache[$ref] ) {
 						$cache[$ref] = array(
 							'link' => $row->link_url,
-							'title' => $row->link_name
+							'title' => $row->link_name,
 							);
 					}
 				}
@@ -1029,14 +1042,25 @@ class wp_smart_links {
 				$res = (array) $res;
 				update_post_cache($res);
 				
-				#dump($res);
+				# prefer direct page children
+				foreach ( $res as $row ) {
+					if ( $row->post_type == 'page' && $row->post_parent == $object_id ) {
+						$ref = sanitize_title($row->ref);
+						if ( !$cache[$ref] ) {
+							$cache[$ref] = array(
+								'link' => apply_filters('the_permalink', get_permalink($row->ID)),
+								'title' => $row->post_title,
+								);
+						}
+					}
+				}
 				
 				foreach ( $res as $row ) {
 					$ref = sanitize_title($row->ref);
 					if ( !$cache[$ref] ) {
 						$cache[$ref] = array(
 							'link' => apply_filters('the_permalink', get_permalink($row->ID)),
-							'title' => $row->post_title
+							'title' => $row->post_title,
 							);
 					}
 				}
