@@ -3,8 +3,8 @@
 Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
-Author: Denis de Bernardy
-Version: 4.2.4
+Author: Denis de Bernardy & Mike Koepke
+Version: 4.3
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -39,11 +39,11 @@ class smart_links {
 	/**
 	 * init()
 	 *
-	 * @param $in
-	 * @return void
+	 * @param mixed $in
+	 * @return mixed $in
 	 **/
 
-	function init($in = null) {
+	static function init(mixed $in = null) {
 		# initialize
 		global $smart_links_cache;
 		global $smart_links_aliases;
@@ -103,7 +103,7 @@ class smart_links {
 	 * @return string $str
 	 **/
 
-	function pre_process($str) {
+	static function pre_process($str) {
 		# pre-process smart links
 		$str = preg_replace_callback("/
 			(?<!`)							# not a backtick before
@@ -151,12 +151,9 @@ class smart_links {
 
 	function pre_process_callback($in) {
 		global $smart_links_cache;
-		global $smart_links_engines;
 		global $smart_links_aliases;
 		global $smart_links_engine_factory;
-		
-		$str = $in[0];
-		
+
 		$label = trim($in[1]);
 		$ref = trim($in[2]);
 		
@@ -257,7 +254,7 @@ class smart_links {
 	 * @return string $str
 	 **/
 
-	function process($str) {
+	static function process($str) {
 		# process smart links
 		$str = preg_replace_callback("/
 			(?<!`)							# not a backtick before
@@ -380,7 +377,7 @@ class smart_links {
 	 * @return void
 	 **/
 
-	function fetch() {
+	static function fetch() {
 		global $smart_links_cache;
 		global $smart_links_engines;
 		global $smart_links_engine_factory;
@@ -414,7 +411,7 @@ class smart_links {
 	 * @return void
 	 **/
 
-	function register_engine($domain, $callback) {
+	static function register_engine($domain, $callback) {
 		global $smart_links_engines;
 		
 		$domain = trim(strtolower($domain));
@@ -430,7 +427,7 @@ class smart_links {
 	 * @return void
 	 **/
 
-	function register_engine_factory($callback) {
+	static function register_engine_factory($callback) {
 		global $smart_links_engine_factory;
 
 		$smart_links_engine_factory = $callback;
@@ -452,8 +449,8 @@ foreach ( array('y', 'yahoo') as $domain ) {
 	smart_links::register_engine($domain, array('smart_links_search', 'yahoo'));
 }
 
-foreach ( array('m', 'msn') as $domain ) {
-	smart_links::register_engine($domain, array('smart_links_search', 'msn'));
+foreach ( array('m', 'bing', 'msn') as $domain ) {
+	smart_links::register_engine($domain, array('smart_links_search', 'bing'));
 }
 
 foreach ( array('w', 'wiki', 'wikipedia') as $domain ) {
@@ -509,15 +506,15 @@ class smart_links_search {
 
 
 	/**
-	 * msn()
+	 * bing()
 	 *
 	 * @param array $links
 	 * @return array $links
 	 **/
 	
-	function msn($links) {
-		return smart_links_search::search($links, "http://search.msn.com/results.aspx?q=", 'MSN');
-	} # msn()
+	function bing($links) {
+		return smart_links_search::search($links, "http://http://www.bing.com//search?q=", 'Bing');
+	} # bing()
 	
 	
 	/**
@@ -563,8 +560,6 @@ class wp_smart_links {
 	function wp($links) {
 		if ( !in_the_loop() || !$links )
 			return $links;
-		else
-			$object_id = get_the_ID();
 		
 		$cache = array_keys($links);
 		
@@ -761,8 +756,6 @@ class wp_smart_links {
 	function terms($links) {
 		if ( !in_the_loop() )
 			return $links;
-		else
-			$object_id = get_the_ID();
 		
 		global $wpdb;
 		
@@ -878,8 +871,6 @@ class wp_smart_links {
 	function links($links) {
 		if ( !in_the_loop() )
 			return $links;
-		else
-			$object_id = get_the_ID();
 		
 		global $wpdb;
 
@@ -970,7 +961,6 @@ class wp_smart_links {
 		$section_id = (int) $section_id;
 		
 		global $wpdb;
-		global $page_filters;
 		
 		$cache = array();
 		
@@ -1152,11 +1142,11 @@ class wp_smart_links {
 		if ( !$section_id ) {
 			$refresh = true;
 		} else {
-			_get_post_ancestors($post);
-			if ( !$post->ancestors ) {
+            $ancestors = get_post_ancestors($post);
+			if ( empty($ancestors) ) {
 				if ( $section_id != $post_id )
 					$refresh = true;
-			} elseif ( $section_id != $post->ancestors[0] ) {
+			} elseif ( $section_id != $ancestors[count($ancestors)-1] ) {
 				$refresh = true;
 			}
 		}
@@ -1218,14 +1208,15 @@ class wp_smart_links {
 		
 		set_transient('cached_section_ids', 1);
 	} # cache_section_ids()
-	
-	
-	/**
-	 * replace()
-	 *
-	 * @param string $tr
-	 * @return string $tr
-	 **/
+
+
+    /**
+     * replace()
+     *
+     * @param $str
+     * @internal param string $tr
+     * @return string $tr
+     */
 
 	function replace($str) {
 		if ( !in_the_loop() || !trim($str) )
@@ -1343,25 +1334,25 @@ class wp_smart_links {
 	 * flush_post()
 	 *
 	 * @param int $post_id
-	 * @return void
+	 * @return mixed
 	 **/
 
 	function flush_post($post_id) {
 		$post_id = (int) $post_id;
 		if ( !$post_id )
-			return;
+			return null;
 		
 		# prevent mass-flushing when the permalink structure hasn't changed
 		remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
 		
 		$post = get_post($post_id);
 		if ( !$post || wp_is_post_revision($post_id) )
-			return;
+			return null;
 		
 		$old = wp_cache_get($post_id, 'pre_flush_post');
 		
 		if ( $post->post_status != 'publish' && ( !$old || $old['post_status'] != 'publish' ) )
-			return;
+			return null;
 		
 		if ( $old === false )
 			return wp_smart_links::flush_cache();
@@ -1390,6 +1381,8 @@ class wp_smart_links {
 					return wp_smart_links::flush_cache();
 			}
 		}
+
+        return null;
 	} # flush_post()
 	
 	
@@ -1424,7 +1417,7 @@ class wp_smart_links {
 # Obsolete function
 
 function sem_smart_link_set_engine($domain, $callback) {
-	return smart_links::register_engine($domain, $callback);
+	smart_links::register_engine($domain, $callback);
 } # sem_smart_link_set_engine()
 
 add_filter('the_content', array('wp_smart_links', 'replace'), 8);
