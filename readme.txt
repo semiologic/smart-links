@@ -1,14 +1,12 @@
 === Smart Links ===
-Contributors: Denis-de-Bernardy
+Contributors: Denis-de-Bernardy, Mike_Koepke
 Donate link: http://www.semiologic.com/partners/
 Tags: semiologic
 Requires at least: 2.8
-Tested up to: 3.2.1
+Tested up to: 3.5.1
 Stable tag: trunk
 
 Lets you (pre-)insert links using natural language rather than urls.
-
-
 
 
 == Description ==
