@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.3
+Version: 4.3.1
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -1456,7 +1456,8 @@ foreach ( array(
 	'update_option_page_on_front',
 	'update_option_page_for_posts',
 	'generate_rewrite_rules',
-		
+    'clean_post_cache',
+    'clean_page_cache',
 	'flush_cache',
 	'after_db_upgrade',
 	) as $hook ) {

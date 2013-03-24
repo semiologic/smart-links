@@ -26,6 +26,10 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
+= 4.3.1 =
+
+- Fix caching issue with "This Page in Widgets" not refreshing on title or description updates
+
 = 4.3 =
 
 - WP 3.5 compat
