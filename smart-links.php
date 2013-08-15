@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.3.1
+Version: 4.4
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -36,7 +36,14 @@ global $smart_links_engines;
 $smart_links_engines = array();
 
 class smart_links {
-	/**
+    /**
+     * smart_links()
+     */
+    function smart_links() {
+
+    }
+
+    /**
 	 * init()
 	 *
 	 * @param mixed $in
@@ -136,7 +143,7 @@ class smart_links {
 					.
 				)*?)
 			\]								# ]
-			/ix", array('smart_links', 'pre_process_callback'), $str);
+			/ix", array($this, 'pre_process_callback'), $str);
 		
 		return $str;
 	} # pre_process()
@@ -302,7 +309,7 @@ class smart_links {
 					.
 				)+?)
 			\]								# ]
-			/ix", array('smart_links', 'process_callback'), $str);
+			/ix", array($this, 'process_callback'), $str);
 		
 		#dump(esc_html($str));
 		
@@ -441,24 +448,30 @@ class smart_links {
  * @package Smart Links
  **/
 
-foreach ( array('g', 'google', 'evil') as $domain ) {
-	smart_links::register_engine($domain, array('smart_links_search', 'google'));
-}
-
-foreach ( array('y', 'yahoo') as $domain ) {
-	smart_links::register_engine($domain, array('smart_links_search', 'yahoo'));
-}
-
-foreach ( array('m', 'bing', 'msn') as $domain ) {
-	smart_links::register_engine($domain, array('smart_links_search', 'bing'));
-}
-
-foreach ( array('w', 'wiki', 'wikipedia') as $domain ) {
-	smart_links::register_engine($domain, array('smart_links_search', 'wiki'));
-}
-
 class smart_links_search {
-	/**
+    /**
+     * smart_links_search
+     */
+    function smart_links_search() {
+        foreach ( array('g', 'google', 'evil') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'google'));
+        }
+
+        foreach ( array('y', 'yahoo') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'yahoo'));
+        }
+
+        foreach ( array('m', 'bing', 'msn') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'bing'));
+        }
+
+        foreach ( array('w', 'wiki', 'wikipedia') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'wiki'));
+        }
+    }
+
+
+    /**
 	 * search()
 	 *
 	 * @param array $links
@@ -537,7 +550,75 @@ class smart_links_search {
  **/
 
 class wp_smart_links {
-	/**
+    /**
+     * wp_smart_links
+     */
+    function wp_smart_links() {
+        add_filter('the_content', array($this, 'replace'), 8);
+        add_filter('the_excerpt', array($this, 'replace'), 8);
+
+        foreach ( array('default', 'wp', 'wordpress') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'wp'));
+        }
+
+        foreach ( array('entries', 'pages', 'posts') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'entries'));
+        	smart_links::register_engine('wp_' . $domain, array($this, 'entries'));
+        	smart_links::register_engine('wordpress_' . $domain, array($this, 'entries'));
+        }
+
+        foreach ( array('terms', 'cats', 'tags') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'terms'));
+        	smart_links::register_engine('wp_' . $domain, array($this, 'terms'));
+        	smart_links::register_engine('wordpress_' . $domain, array($this, 'terms'));
+        }
+
+        foreach ( array('links', 'blogroll') as $domain ) {
+        	smart_links::register_engine($domain, array($this, 'links'));
+        	smart_links::register_engine('wp_' . $domain, array($this, 'links'));
+        	smart_links::register_engine('wordpress_' . $domain, array($this, 'links'));
+        }
+
+        smart_links::register_engine_factory(array($this, 'factory'));
+
+        foreach ( array(
+        	'add_link',
+        	'edit_link',
+        	'delete_link',
+        	'update_option_active_plugins',
+        	'update_option_show_on_front',
+        	'update_option_page_on_front',
+        	'update_option_page_for_posts',
+        	'generate_rewrite_rules',
+            'clean_post_cache',
+            'clean_page_cache',
+        	'flush_cache',
+        	'after_db_upgrade',
+        	) as $hook ) {
+        	add_action($hook, array($this, 'flush_cache'));
+        }
+
+        add_action('pre_post_update', array($this, 'pre_flush_post'));
+
+        foreach ( array(
+        	'save_post',
+        	'delete_post',
+        	) as $hook ) {
+        	add_action($hook, array($this, 'flush_post'), 1); // before _save_post_hook()
+        }
+
+        add_action('post_widget_config_affected', array($this, 'widget_config_affected'));
+        add_action('page_widget_config_affected', array($this, 'widget_config_affected'));
+
+        register_activation_hook(__FILE__, array($this, 'flush_cache'));
+        register_deactivation_hook(__FILE__, array($this, 'flush_cache'));
+
+        add_action('save_post', array($this, 'save_post'));
+
+        wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
+    }
+
+    /**
 	 * widget_config_affected()
 	 *
 	 * @return void
@@ -1218,7 +1299,7 @@ class wp_smart_links {
      * @return string $tr
      */
 
-	function replace($str) {
+	static function replace($str) {
 		if ( !in_the_loop() || !trim($str) )
 			return $str;
 		
@@ -1245,7 +1326,7 @@ class wp_smart_links {
 	 * @return bool $process
 	 **/
 
-	function cache() {
+	static function cache() {
 		global $smart_links_cache;
 		
 		$post_id = get_the_ID();
@@ -1343,7 +1424,7 @@ class wp_smart_links {
 			return null;
 		
 		# prevent mass-flushing when the permalink structure hasn't changed
-		remove_action('generate_rewrite_rules', array('wp_smart_links', 'flush_cache'));
+		remove_action('generate_rewrite_rules', array($this, 'flush_cache'));
 		
 		$post = get_post($post_id);
 		if ( !$post || wp_is_post_revision($post_id) )
@@ -1420,66 +1501,7 @@ function sem_smart_link_set_engine($domain, $callback) {
 	smart_links::register_engine($domain, $callback);
 } # sem_smart_link_set_engine()
 
-add_filter('the_content', array('wp_smart_links', 'replace'), 8);
-add_filter('the_excerpt', array('wp_smart_links', 'replace'), 8);
 
-foreach ( array('default', 'wp', 'wordpress') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'wp'));
-}
+$wp_smart_links = new wp_smart_links();
 
-foreach ( array('entries', 'pages', 'posts') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'entries'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'entries'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'entries'));
-}
-
-foreach ( array('terms', 'cats', 'tags') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'terms'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'terms'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'terms'));
-}
-
-foreach ( array('links', 'blogroll') as $domain ) {
-	smart_links::register_engine($domain, array('wp_smart_links', 'links'));
-	smart_links::register_engine('wp_' . $domain, array('wp_smart_links', 'links'));
-	smart_links::register_engine('wordpress_' . $domain, array('wp_smart_links', 'links'));
-}
-
-smart_links::register_engine_factory(array('wp_smart_links', 'factory'));
-
-foreach ( array(
-	'add_link',
-	'edit_link',
-	'delete_link',
-	'update_option_active_plugins',
-	'update_option_show_on_front',
-	'update_option_page_on_front',
-	'update_option_page_for_posts',
-	'generate_rewrite_rules',
-    'clean_post_cache',
-    'clean_page_cache',
-	'flush_cache',
-	'after_db_upgrade',
-	) as $hook ) {
-	add_action($hook, array('wp_smart_links', 'flush_cache'));
-}
-
-add_action('pre_post_update', array('wp_smart_links', 'pre_flush_post'));
-
-foreach ( array(
-	'save_post',
-	'delete_post',
-	) as $hook ) {
-	add_action($hook, array('wp_smart_links', 'flush_post'), 1); // before _save_post_hook()
-}
-
-add_action('post_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-add_action('page_widget_config_affected', array('wp_smart_links', 'widget_config_affected'));
-
-register_activation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
-register_deactivation_hook(__FILE__, array('wp_smart_links', 'flush_cache'));
-
-add_action('save_post', array('wp_smart_links', 'save_post'));
-
-wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
 ?>
