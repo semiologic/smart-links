@@ -26,6 +26,10 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
+= 4.4.1 =
+
+- Fix missing static designator in PHP code
+
 = 4.4 =
 
 - WP 3.6 compat

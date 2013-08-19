@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.4
+Version: 4.4.1
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -32,14 +32,13 @@ if ( !defined('smart_links_debug') )
  * @package Smart Links
  **/
 
-global $smart_links_engines;
 $smart_links_engines = array();
 
 class smart_links {
     /**
      * smart_links()
      */
-    function smart_links() {
+    function __construct() {
 
     }
 
@@ -50,7 +49,7 @@ class smart_links {
 	 * @return mixed $in
 	 **/
 
-	static function init(mixed $in = null) {
+	static function init($in = null) {
 		# initialize
 		global $smart_links_cache;
 		global $smart_links_aliases;
@@ -143,7 +142,7 @@ class smart_links {
 					.
 				)*?)
 			\]								# ]
-			/ix", array($this, 'pre_process_callback'), $str);
+			/ix", array('smart_links', 'pre_process_callback'), $str);
 		
 		return $str;
 	} # pre_process()
@@ -309,7 +308,7 @@ class smart_links {
 					.
 				)+?)
 			\]								# ]
-			/ix", array($this, 'process_callback'), $str);
+			/ix", array('smart_links', 'process_callback'), $str);
 		
 		#dump(esc_html($str));
 		
@@ -452,7 +451,7 @@ class smart_links_search {
     /**
      * smart_links_search
      */
-    function smart_links_search() {
+    function __construct() {
         foreach ( array('g', 'google', 'evil') as $domain ) {
         	smart_links::register_engine($domain, array($this, 'google'));
         }
@@ -553,7 +552,7 @@ class wp_smart_links {
     /**
      * wp_smart_links
      */
-    function wp_smart_links() {
+    function __construct() {
         add_filter('the_content', array($this, 'replace'), 8);
         add_filter('the_excerpt', array($this, 'replace'), 8);
 
