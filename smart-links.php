@@ -4,19 +4,18 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.4.1
+Version: 4.5
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
+License: Dual licensed under the MIT and GPLv2 licenses
 */
 
 /*
 Terms of use
 ------------
 
-This software is copyright Mesoconcepts and is distributed under the terms of the Mesoconcepts license. In a nutshell, you may freely use it for any purpose, but may not redistribute it without written permission.
-
-http://www.mesoconcepts.com/license/
+This software is copyright Denis de Bernardy & Mike Koepke, and is distributed under the terms of the MIT and GPLv2 licenses.
 **/
 
 
@@ -38,7 +37,7 @@ class smart_links {
     /**
      * smart_links()
      */
-    function __construct() {
+	public function __construct() {
 
     }
 
@@ -451,7 +450,7 @@ class smart_links_search {
     /**
      * smart_links_search
      */
-    function __construct() {
+	public function __construct() {
         foreach ( array('g', 'google', 'evil') as $domain ) {
         	smart_links::register_engine($domain, array($this, 'google'));
         }
@@ -552,7 +551,7 @@ class wp_smart_links {
     /**
      * wp_smart_links
      */
-    function __construct() {
+	public function __construct() {
         add_filter('the_content', array($this, 'replace'), 8);
         add_filter('the_excerpt', array($this, 'replace'), 8);
 
@@ -1208,15 +1207,21 @@ class wp_smart_links {
 	 **/
 
 	function save_post($post_id) {
-		if ( !get_transient('cached_section_ids') )
+		if ( !get_transient('cached_section_ids') || wp_is_post_revision($post_id) || !current_user_can('edit_post', $post_id) )
 			return;
 		
 		$post_id = (int) $post_id;
 		$post = get_post($post_id);
 		
-		if ( $post->post_type != 'page' )
+		if ( $post->post_type != 'page' || $post->post_status != 'publish' || $post->post_status != 'trash' )
 			return;
-		
+
+
+		if ( $post->post_status == 'trash' ) {
+			delete_transient('cached_section_ids');
+			return;
+		}
+
 		$section_id = get_post_meta($post_id, '_section_id', true);
 		$refresh = false;
 		if ( !$section_id ) {
@@ -1247,6 +1252,8 @@ class wp_smart_links {
 					delete_transient('cached_section_ids');
 			} else {
 				# fix corrupt data
+				if ( $section_id )
+					delete_post_meta($post_id, '_section_id');
 				delete_transient('cached_section_ids');
 			}
 		}
@@ -1502,5 +1509,3 @@ function sem_smart_link_set_engine($domain, $callback) {
 
 
 $wp_smart_links = new wp_smart_links();
-
-?>

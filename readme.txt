@@ -3,7 +3,7 @@ Contributors: Denis-de-Bernardy, Mike_Koepke
 Donate link: http://www.semiologic.com/partners/
 Tags: semiologic
 Requires at least: 2.8
-Tested up to: 3.6
+Tested up to: 3.8
 Stable tag: trunk
 
 Lets you (pre-)insert links using natural language rather than urls.
@@ -25,6 +25,11 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 
 == Change Log ==
+
+= 4.5 =
+
+- Improved context caching to work better with page revisions and auto-saves.
+- WP 3.8 compat
 
 = 4.4.1 =
 
