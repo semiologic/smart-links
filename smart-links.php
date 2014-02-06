@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.5
+Version: 4.5.1
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -611,7 +611,7 @@ class wp_smart_links {
         register_activation_hook(__FILE__, array($this, 'flush_cache'));
         register_deactivation_hook(__FILE__, array($this, 'flush_cache'));
 
-        add_action('save_post', array($this, 'save_post'));
+        add_action('save_post', array($this, 'save_post'), 15);
 
         wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
     }
@@ -1207,13 +1207,15 @@ class wp_smart_links {
 	 **/
 
 	function save_post($post_id) {
-		if ( !get_transient('cached_section_ids') || wp_is_post_revision($post_id) || !current_user_can('edit_post', $post_id) )
+		if ( isset($GLOBALS['sem_id_cache']) || wp_is_post_revision($post_id) || !current_user_can('edit_post', $post_id) )
 			return;
-		
+
+		$GLOBALS['sem_id_cache'] = true;
+
 		$post_id = (int) $post_id;
 		$post = get_post($post_id);
 		
-		if ( $post->post_type != 'page' || $post->post_status != 'publish' || $post->post_status != 'trash' )
+		if ( $post->post_type != 'page' || ( $post->post_status != 'publish' && $post->post_status != 'trash' ) )
 			return;
 
 
