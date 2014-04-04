@@ -26,6 +26,10 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
+= 4.6 =
+
+- Code refactoring
+
 = 4.5.1 =
 
 - Further tweaks around the widget context caching

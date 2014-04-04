@@ -4,7 +4,7 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.5.1
+Version: 4.6 dev
 Author URI: http://www.getsemiologic.com
 Text Domain: smart-links
 Domain Path: /lang
@@ -19,526 +19,8 @@ This software is copyright Denis de Bernardy & Mike Koepke, and is distributed u
 **/
 
 
-load_plugin_textdomain('smart-links', false, dirname(plugin_basename(__FILE__)) . '/lang');
-
-
 if ( !defined('smart_links_debug') )
 	define('smart_links_debug', false);
-
-/**
- * smart_links
- *
- * @package Smart Links
- **/
-
-$smart_links_engines = array();
-
-class smart_links {
-    /**
-     * smart_links()
-     */
-	public function __construct() {
-
-    }
-
-    /**
-	 * init()
-	 *
-	 * @param mixed $in
-	 * @return mixed $in
-	 **/
-
-	static function init($in = null) {
-		# initialize
-		global $smart_links_cache;
-		global $smart_links_aliases;
-		global $smart_links_engines;
-
-		$smart_links_cache = array();
-		
-		# create alias list
-		if ( !isset($smart_links_aliases) ) {
-			$smart_links_aliases = array();
-			
-			foreach ( array_keys($smart_links_engines) as $domain ) {
-				$smart_links_aliases[$domain] = array_search($smart_links_engines[$domain], $smart_links_engines);
-			}
-		}
-		
-		#dump($smart_links_aliases);
-		
-		return $in;
-	} # init()
-	
-	
-	/**
-	 * replace()
-	 *
-	 * @param string $str
-	 * @return string $str
-	 **/
-	
-	function replace($str) {
-		if ( strpos($str, '[') === false || strpos($str, ']') === false )
-			return $str;
-		
-		smart_links::init();
-		
-		#dump(esc_html($str));
-		
-		$str = smart_links::pre_process($str);
-		
-		#dump(esc_html($str));
-		
-		# fetch links
-		smart_links::fetch();
-		
-		$str = smart_links::process($str);
-		
-		#dump(esc_html($str));
-		
-		return $str;
-	} # replace()
-	
-	
-	/**
-	 * pre_process()
-	 *
-	 * @param string $str
-	 * @return string $str
-	 **/
-
-	static function pre_process($str) {
-		# pre-process smart links
-		$str = preg_replace_callback("/
-			(?<!`)							# not a backtick before
-			\[								# [
-				((?:						# text
-					(?!(?:					# not an anchor ahead, nor a ]
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-					))
-					.
-				)+?)
-				-(?:>|&gt;|&\#62;)			# ->
-				((?:						# optional ref
-					(?!(?:					# not an anchor ahead, nor a [ or a ->
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-						|
-						-(?:>|&gt;|&\#62;)
-					))
-					.
-				)*?)
-			\]								# ]
-			/ix", array('smart_links', 'pre_process_callback'), $str);
-		
-		return $str;
-	} # pre_process()
-	
-	
-	/**
-	 * pre_process_callback()
-	 *
-	 * @param array $in regex match
-	 * @return string $out
-	 **/
-
-	function pre_process_callback($in) {
-		global $smart_links_cache;
-		global $smart_links_aliases;
-		global $smart_links_engine_factory;
-
-		$label = trim($in[1]);
-		$ref = trim($in[2]);
-		
-		# set default ref
-		if ( $ref == '' ) {
-			$ref = strtolower($label);
-		}
-		
-		#dump(esc_html($label));
-		#dump(esc_html($ref));
-		
-		# catch raw urls
-		if ( preg_match("/
-			(?:							# something that looks like a url
-				^\/
-				|
-				^\#
-				|
-				^\?
-				|
-				:\/\/
-			)
-			/x", $ref) ) {
-			# process directly
-			if ( $label == $ref ) {
-				$label = preg_replace("/
-					^.+:\/\/
-					/x", '', $label);
-			}
-			
-			return '<a href="' . esc_url($ref) . '" title="' . esc_attr($label) . '">'
-				. $label
-				. '</a>';
-		
-		# catch domains without ref
-		} elseif ( strpos($ref, '@') === 0 ) {
-			$domain = trim(str_replace('@', '', $ref));
-			$ref = strtolower($label);
-		
-		# catch emails
-		} elseif ( preg_match("/
-			(?:mailto:\s*)?
-			(							# something that looks like an email
-				[a-z0-9%_|~-]+
-				(?:\.[a-z0-9%_|~-]+)*
-				@
-				[a-z0-9%_|~-]+
-				(?:\.[a-z0-9%_|~-]+)+
-			)
-			/ix", $ref, $match) ) {
-			# process directly
-			$email = trim($match[1]);
-
-			return '<a href="mailto:' . $email . '" title="' . $email . '">'
-				. $label
-				. '</a>';
-		
-		# use default domain if none is specified
-		} elseif ( strpos($ref, '@') === false ) {
-			$domain = 'default';
-			$ref = $ref;
-		
-		# else extract domain
-		} else {
-			$match = preg_split("/@/", $ref);
-			
-			$ref = trim($match[0]);
-			$domain = trim($match[1]);
-			
-			if ( !$domain ) {
-				$domain = 'default';
-			}
-		}
-		
-		# catch domain alias (i.e. every registered domain)
-		if ( !empty($smart_links_aliases[$domain]) ) {
-			$domain = $smart_links_aliases[$domain];
-		
-		# catch no factory
-		} elseif ( !$smart_links_engine_factory ) {
-			return $label;
-		}
-		
-		# register smart link
-		if ( !isset($smart_links_cache[$domain][$ref]) )
-			$smart_links_cache[$domain][$ref] = false;
-		
-		#dump($label, $ref, $domain);
-		
-		return '[' . $label . '-&gt;' . $ref . ' @ ' . $domain . ']';
-	} # pre_process_callback()
-	
-	
-	/**
-	 * process()
-	 *
-	 * @param string $str
-	 * @return string $str
-	 **/
-
-	static function process($str) {
-		# process smart links
-		$str = preg_replace_callback("/
-			(?<!`)							# not a backtick before
-			\[								# [
-				((?:						# text
-					(?!(?:					# not an anchor ahead, nor brakets
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-					))
-					.
-				)+?)
-				-(?:>|&gt;|&\#62;)			# ->
-				((?:						# ref
-					(?!(?:					# not an anchor ahead, nor brakets
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-						|
-						-(?:>|&gt;|&\#62;)
-					))
-					.
-				)+?)
-				@
-				((?:						# domain
-					(?!(?:					# not an anchor ahead, nor brakets
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-						|
-						-(?:>|&gt;|&\#62;)
-					))
-					.
-				)+?)
-			\]								# ]
-			/ix", array('smart_links', 'process_callback'), $str);
-		
-		#dump(esc_html($str));
-		
-		# unescape smart links
-		$str = preg_replace("/
-			`								# a backtick
-			\[								# [
-				((?:						# text
-					(?!(?:					# not an anchor ahead, nor a ]
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-					))
-					.
-				)+?)
-				-(?:>|&gt;|&\#62;)			# ->
-				((?:						# optional ref
-					(?!(?:					# not an anchor ahead, nor a [ or a ->
-						<a\s
-						|
-						<\/a>
-						|
-						\[
-						|
-						\]
-						|
-						-(?:>|&gt;|&\#62;)
-					))
-					.
-				)*?)
-			\]								# ]
-			`?								# optional backtick (greedy)
-			/ix", "[$1-&gt;$2]", $str);
-		
-		return $str;
-	} # process()
-	
-	
-	/**
-	 * process_callback()
-	 *
-	 * @param array $in regex match
-	 * @return string $out
-	 **/
-
-	function process_callback($in) {
-		global $smart_links_cache;
-
-		$label = trim($in[1]);
-		$ref = trim($in[2]);
-		$domain = trim($in[3]);
-		
-		#dump($label, $ref, $domain, $smart_links_cache[$domain]);
-		
-		if ( !( $link = $smart_links_cache[$domain][$ref] ) ) {
-			return $label;
-		}
-		
-		return '<a href="' . esc_url($link['link']) . '"'
-			. ' title="' . esc_attr($link['title']) . '"'
-			. '>' . $label . '</a>';
-	} # process_callback()
-	
-	
-	/**
-	 * fetch()
-	 *
-	 * @return void
-	 **/
-
-	static function fetch() {
-		global $smart_links_cache;
-		global $smart_links_engines;
-		global $smart_links_engine_factory;
-		
-		# fetch links
-		foreach ( $smart_links_cache as $domain => $links ) {
-			if ( !isset($smart_links_engines[$domain])
-				&& isset($smart_links_engine_factory)
-			) {
-				$smart_links_engines[$domain] = call_user_func($smart_links_engine_factory, $domain);
-			}
-			
-			# ksort links and reverse it, so as to scan longer refs first
-			ksort($links);
-			$links = array_reverse($links, true);
-			
-			if ( isset($smart_links_engines[$domain]) ) {
-				$smart_links_cache[$domain] = call_user_func($smart_links_engines[$domain], $links);
-			}
-		}
-		
-		#dump($smart_links_cache);
-	} # fetch()
-	
-	
-	/**
-	 * register_engine()
-	 *
-	 * @param string $domain
-	 * @param callback $callback
-	 * @return void
-	 **/
-
-	static function register_engine($domain, $callback) {
-		global $smart_links_engines;
-		
-		$domain = trim(strtolower($domain));
-		
-		$smart_links_engines[$domain] = $callback;
-	} # register_engine()
-
-
-	/**
-	 * register_engine_factory()
-	 *
-	 * @param callback $callback
-	 * @return void
-	 **/
-
-	static function register_engine_factory($callback) {
-		global $smart_links_engine_factory;
-
-		$smart_links_engine_factory = $callback;
-	} # register_engine_factory()
-} # smart_links
-
-
-/**
- * smart_links_search
- *
- * @package Smart Links
- **/
-
-class smart_links_search {
-    /**
-     * smart_links_search
-     */
-	public function __construct() {
-        foreach ( array('g', 'google', 'evil') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'google'));
-        }
-
-        foreach ( array('y', 'yahoo') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'yahoo'));
-        }
-
-        foreach ( array('m', 'bing', 'msn') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'bing'));
-        }
-
-        foreach ( array('w', 'wiki', 'wikipedia') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'wiki'));
-        }
-    }
-
-
-    /**
-	 * search()
-	 *
-	 * @param array $links
-	 * @param string $how query url
-	 * @param string $where engine name
-	 * @return array $links
-	 **/
-
-	function search($links, $how, $where)  {
-		foreach ( array_keys($links) as $ref ) {
-			if ( !$links[$ref] ) {
-				$links[$ref] = array(
-					'link' => ( $how . urlencode($ref) ),
-					'title' => "$ref @ $where"
-					);
-			}
-		}
-
-		return $links;
-	} # search()
-	
-	
-	/**
-	 * google()
-	 *
-	 * @param array $links
-	 * @return array $links
-	 **/
-
-	function google($links) {
-		return smart_links_search::search($links, "http://www.google.com/search?q=", 'Google');
-	} # google()
-	
-	
-	/**
-	 * yahoo()
-	 *
-	 * @param array $links
-	 * @return array $links
-	 **/
-	
-	function yahoo($links) {
-		return smart_links_search::search($links, "http://search.yahoo.com/search?p=", 'Yahoo!');
-	} # yahoo()
-
-
-	/**
-	 * bing()
-	 *
-	 * @param array $links
-	 * @return array $links
-	 **/
-	
-	function bing($links) {
-		return smart_links_search::search($links, "http://http://www.bing.com//search?q=", 'Bing');
-	} # bing()
-	
-	
-	/**
-	 * wiki()
-	 *
-	 * @param array $links
-	 * @return array $links
-	 **/
-	
-	function wiki($links) {
-		return smart_links_search::search($links, "http://en.wikipedia.org/wiki/Special:Search?search=", 'Wikipedia');
-	} # wiki()
-} # smart_links_search
 
 
 /**
@@ -548,73 +30,147 @@ class smart_links_search {
  **/
 
 class wp_smart_links {
-    /**
-     * wp_smart_links
-     */
+	/**
+	 * Plugin instance.
+	 *
+	 * @see get_instance()
+	 * @type object
+	 */
+	protected static $instance = NULL;
+
+	/**
+	 * URL to this plugin's directory.
+	 *
+	 * @type string
+	 */
+	public $plugin_url = '';
+
+	/**
+	 * Path to this plugin's directory.
+	 *
+	 * @type string
+	 */
+	public $plugin_path = '';
+
+	/**
+	 * Access this plugin’s working instance
+	 *
+	 * @wp-hook plugins_loaded
+	 * @return  object of this class
+	 */
+	public static function get_instance()
+	{
+		NULL === self::$instance and self::$instance = new self;
+
+		return self::$instance;
+	}
+
+	/**
+	 * Loads translation file.
+	 *
+	 * Accessible to other classes to load different language files (admin and
+	 * front-end for example).
+	 *
+	 * @wp-hook init
+	 * @param   string $domain
+	 * @return  void
+	 */
+	public function load_language( $domain )
+	{
+		load_plugin_textdomain(
+			$domain,
+			FALSE,
+			$this->plugin_path . 'lang'
+		);
+	}
+
+	/**
+	 * Constructor.
+	 *
+	 *
+	 */
 	public function __construct() {
-        add_filter('the_content', array($this, 'replace'), 8);
-        add_filter('the_excerpt', array($this, 'replace'), 8);
+		$this->plugin_url    = plugins_url( '/', __FILE__ );
+		$this->plugin_path   = plugin_dir_path( __FILE__ );
+		$this->load_language( 'smart-links' );
 
-        foreach ( array('default', 'wp', 'wordpress') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'wp'));
-        }
+		include dirname(__FILE__) . '/smart-links-helpers.php';
 
-        foreach ( array('entries', 'pages', 'posts') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'entries'));
-        	smart_links::register_engine('wp_' . $domain, array($this, 'entries'));
-        	smart_links::register_engine('wordpress_' . $domain, array($this, 'entries'));
-        }
-
-        foreach ( array('terms', 'cats', 'tags') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'terms'));
-        	smart_links::register_engine('wp_' . $domain, array($this, 'terms'));
-        	smart_links::register_engine('wordpress_' . $domain, array($this, 'terms'));
-        }
-
-        foreach ( array('links', 'blogroll') as $domain ) {
-        	smart_links::register_engine($domain, array($this, 'links'));
-        	smart_links::register_engine('wp_' . $domain, array($this, 'links'));
-        	smart_links::register_engine('wordpress_' . $domain, array($this, 'links'));
-        }
-
-        smart_links::register_engine_factory(array($this, 'factory'));
-
-        foreach ( array(
-        	'add_link',
-        	'edit_link',
-        	'delete_link',
-        	'update_option_active_plugins',
-        	'update_option_show_on_front',
-        	'update_option_page_on_front',
-        	'update_option_page_for_posts',
-        	'generate_rewrite_rules',
-            'clean_post_cache',
-            'clean_page_cache',
-        	'flush_cache',
-        	'after_db_upgrade',
-        	) as $hook ) {
-        	add_action($hook, array($this, 'flush_cache'));
-        }
-
-        add_action('pre_post_update', array($this, 'pre_flush_post'));
-
-        foreach ( array(
-        	'save_post',
-        	'delete_post',
-        	) as $hook ) {
-        	add_action($hook, array($this, 'flush_post'), 1); // before _save_post_hook()
-        }
-
-        add_action('post_widget_config_affected', array($this, 'widget_config_affected'));
-        add_action('page_widget_config_affected', array($this, 'widget_config_affected'));
-
-        register_activation_hook(__FILE__, array($this, 'flush_cache'));
-        register_deactivation_hook(__FILE__, array($this, 'flush_cache'));
-
-        add_action('save_post', array($this, 'save_post'), 15);
-
-        wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
+		add_action( 'plugins_loaded', array ( $this, 'init' ) );
     }
+
+	/**
+	 * init()
+	 *
+	 * @return void
+	 **/
+
+	function init() {
+		// more stuff: register actions and filters
+		add_filter('the_content', array($this, 'replace'), 8);
+		add_filter('the_excerpt', array($this, 'replace'), 8);
+
+		foreach ( array('default', 'wp', 'wordpress') as $domain ) {
+			smart_links::register_engine($domain, array($this, 'wp'));
+		}
+
+		foreach ( array('entries', 'pages', 'posts') as $domain ) {
+			smart_links::register_engine($domain, array($this, 'entries'));
+			smart_links::register_engine('wp_' . $domain, array($this, 'entries'));
+			smart_links::register_engine('wordpress_' . $domain, array($this, 'entries'));
+		}
+
+		foreach ( array('terms', 'cats', 'tags') as $domain ) {
+			smart_links::register_engine($domain, array($this, 'terms'));
+			smart_links::register_engine('wp_' . $domain, array($this, 'terms'));
+			smart_links::register_engine('wordpress_' . $domain, array($this, 'terms'));
+		}
+
+		foreach ( array('links', 'blogroll') as $domain ) {
+			smart_links::register_engine($domain, array($this, 'links'));
+			smart_links::register_engine('wp_' . $domain, array($this, 'links'));
+			smart_links::register_engine('wordpress_' . $domain, array($this, 'links'));
+		}
+
+		smart_links::register_engine_factory(array($this, 'factory'));
+
+		foreach ( array(
+			'add_link',
+			'edit_link',
+			'delete_link',
+			'update_option_active_plugins',
+			'update_option_show_on_front',
+			'update_option_page_on_front',
+			'update_option_page_for_posts',
+			'generate_rewrite_rules',
+			  'clean_post_cache',
+			  'clean_page_cache',
+			'flush_cache',
+			'after_db_upgrade',
+			) as $hook ) {
+			add_action($hook, array($this, 'flush_cache'));
+		}
+
+		add_action('pre_post_update', array($this, 'pre_flush_post'));
+
+		foreach ( array(
+			'save_post',
+			'delete_post',
+			) as $hook ) {
+			add_action($hook, array($this, 'flush_post'), 1); // before _save_post_hook()
+		}
+
+		add_action('post_widget_config_affected', array($this, 'widget_config_affected'));
+		add_action('page_widget_config_affected', array($this, 'widget_config_affected'));
+
+		register_activation_hook(__FILE__, array($this, 'flush_cache'));
+		register_deactivation_hook(__FILE__, array($this, 'flush_cache'));
+
+		add_action('save_post', array($this, 'save_post'), 15);
+
+		wp_cache_add_non_persistent_groups(array('widget_queries', 'pre_flush_post'));
+	}
+
 
     /**
 	 * widget_config_affected()
@@ -1502,12 +1058,4 @@ class wp_smart_links {
 	} # flush_cache()
 } # wp_smart_links
 
-
-# Obsolete function
-
-function sem_smart_link_set_engine($domain, $callback) {
-	smart_links::register_engine($domain, $callback);
-} # sem_smart_link_set_engine()
-
-
-$wp_smart_links = new wp_smart_links();
+$wp_smart_links = wp_smart_links::get_instance();
