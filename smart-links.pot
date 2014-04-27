@@ -1,31 +1,43 @@
-# Smart Links pot file.
-# Copyright (C) 2009 Mesoconcepts <http://www.mesoconcepts.com>
+# Copyright (C) 2014 Smart Links
 # This file is distributed under the same license as the Smart Links package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 4.2.2\n"
-"Report-Msgid-Bugs-To: https://tickets.semiologic.com\n"
-"POT-Creation-Date: 2009-12-12 19:37+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Project-Id-Version: Smart Links 4.6 dev\n"
+"Report-Msgid-Bugs-To: http://wordpress.org/support/plugin/smart-links\n"
+"POT-Creation-Date: 2014-04-27 23:21:27+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2014-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
-"Content-Transfer-Encoding: 8bit\n"
 
+#. #-#-#-#-#  smart-links.pot (Smart Links 4.6 dev)  #-#-#-#-#
+#. Plugin Name of the plugin/theme
 #: smart-links-info.php:2
 msgid "Smart Links"
 msgstr ""
 
+#. #-#-#-#-#  smart-links.pot (Smart Links 4.6 dev)  #-#-#-#-#
+#. Description of the plugin/theme
 #: smart-links-info.php:3
 msgid ""
 "Lets you write links as [link text->link ref] (explicit link), or as [link "
 "text->] (implicit link)."
 msgstr ""
 
-#: smart-links.php:551
+#: smart-links.php:183
 msgid "Smart Links (exclude only)"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+msgid "http://www.semiologic.com/software/smart-links/"
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Denis de Bernardy & Mike Koepke"
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "http://www.getsemiologic.com"
 msgstr ""
