@@ -26,6 +26,10 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 == Change Log ==
 
+= 4.6.1 =
+
+- Clear internal cache upon WP upgrade
+
 = 4.6 =
 
 - Code refactoring
