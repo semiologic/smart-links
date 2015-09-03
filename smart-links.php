@@ -4,8 +4,8 @@ Plugin Name: Smart Links
 Plugin URI: http://www.semiologic.com/software/smart-links/
 Description: Lets you write links as [link text->link ref] (explicit link), or as [link text->] (implicit link).
 Author: Denis de Bernardy & Mike Koepke
-Version: 4.7
-Author URI: http://www.getsemiologic.com
+Version: 4.8
+Author URI: https://www.semiologic.com
 Text Domain: smart-links
 Domain Path: /lang
 License: Dual licensed under the MIT and GPLv2 licenses
@@ -588,7 +588,7 @@ class wp_smart_links {
 	 * @return array $links
 	 **/
 	
-	function section($section_id, $links) {
+	static function section($section_id, $links) {
 		if ( !in_the_loop() )
 			return $links;
 		else

@@ -37,7 +37,7 @@ class smart_links {
 			$smart_links_aliases = array();
 
 			foreach ( array_keys($smart_links_engines) as $domain ) {
-				$smart_links_aliases[$domain] = array_search($smart_links_engines[$domain], $smart_links_engines);
+				$smart_links_aliases[$domain] = $smart_links_engines[$domain];
 			}
 		}
 
@@ -130,7 +130,7 @@ class smart_links {
 	 * @return string $out
 	 **/
 
-	function pre_process_callback($in) {
+	static function pre_process_callback($in) {
 		global $smart_links_cache;
 		global $smart_links_aliases;
 		global $smart_links_engine_factory;
@@ -333,7 +333,7 @@ class smart_links {
 	 * @return string $out
 	 **/
 
-	function process_callback($in) {
+	static function process_callback($in) {
 		global $smart_links_cache;
 
 		$label = trim($in[1]);
@@ -422,11 +422,31 @@ class smart_links {
  **/
 
 class smart_links_search {
+	/**
+	 * Plugin instance.
+	 *
+	 * @see get_instance()
+	 * @type object
+	 */
+	protected static $instance = NULL;
+
+	/**
+	 * Access this plugin’s working instance
+	 *
+	 * @return  object of this class
+	 */
+	public static function get_instance()
+	{
+		NULL === self::$instance and self::$instance = new self;
+
+		return self::$instance;
+	}
+
     /**
      * smart_links_search
      */
 	public function __construct() {
-        foreach ( array('g', 'google', 'evil') as $domain ) {
+        foreach ( array('g', 'google') as $domain ) {
         	smart_links::register_engine($domain, array($this, 'google'));
         }
 
@@ -514,6 +534,9 @@ class smart_links_search {
 		return smart_links_search::search($links, "http://en.wikipedia.org/wiki/Special:Search?search=", 'Wikipedia');
 	} # wiki()
 } # smart_links_search
+
+
+$smart_links_search = smart_links_search::get_instance();
 
 # Obsolete function
 

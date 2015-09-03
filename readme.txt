@@ -1,9 +1,9 @@
 === Smart Links ===
 Contributors: Denis-de-Bernardy, Mike_Koepke
-Donate link: http://www.semiologic.com/partners/
+Donate link: https://www.semiologic.com/donate/
 Tags: semiologic
 Requires at least: 2.8
-Tested up to: 4.0
+Tested up to: 4.3
 Stable tag: trunk
 
 Lets you (pre-)insert links using natural language rather than urls.
@@ -15,7 +15,7 @@ The smart link plugin for WordPress lets you insert links using natural language
 
 = Help Me! =
 
-The [Semiologic forum](http://forum.semiologic.com) is the best place to report issues.
+The [Semiologic Support Page](https://www.semiologic.com/support/) is the best place to report issues.
 
 
 == Installation ==
@@ -25,6 +25,12 @@ The [Semiologic forum](http://forum.semiologic.com) is the best place to report 
 
 
 == Change Log ==
+
+= 4.8 =
+
+- Fix a bunch of missed static/non-static php calling warnings that got missed
+- WP 4.3 compat
+- Tested against PHP 5.6
 
 = 4.7 =
 
